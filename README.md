@@ -21,9 +21,9 @@
   esinlenerek; blok yapisini ve yerelde markdown olarak dosyalari saklamak uzerinde kurulu AST( Abstract Syntax Tree ) algoritmasini kullanarak
   olusturdugum motora sahip.
 
-- Algoritmalar ve temel yapi, guvenlik dosyalarin uzanti kontrolu Rust ile saglaniyor.
-- On kontrol de React tarafindan Rust a iletiliyor, React de basit bir ust taramasi yapiliyor icerde de gelen veri komple soyunuyor.
-- Uygulama tamamen yerel de calisiyor ilk once guvenlik diyerek planladigim bir proje.
+ - Algoritmalar ve temel yapi, guvenlik dosyalarin uzanti kontrolu Rust ile saglaniyor.
+ - On kontrol de React tarafindan Rust a iletiliyor, React de basit bir ust taramasi yapiliyor icerde de gelen veri komple soyunuyor.
+ - Uygulama tamamen yerel de calisiyor ilk once guvenlik diyerek planladigim bir proje.
 
 ### Yapmayi Planladiklarim
 
