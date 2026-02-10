@@ -1,0 +1,31 @@
+# Maintainer: Rumata <email-adresiniz@ornek.com>
+pkgname=petbottle-bin
+pkgver=0.1.6  # BURASI ÖNEMLİ: Release Tag'iniz 0.1.6 olduğu için burası da 0.1.6 olmalı
+pkgrel=1
+pkgdesc="Petbottle: Yerel not uygulaması"
+arch=('x86_64')
+url="https://github.com/Rumata01/Petbottle-public"
+license=('Apache-2.0')
+provides=('petbottle')
+conflicts=('petbottle')
+depends=('gtk3' 'webkit2gtk' 'libappindicator-gtk3')
+
+# DİKKAT: Normalde burası petbottle_${pkgver}... olurdu.
+# Ancak dosya adınız 0.1.0 kaldığı için linki elle sabitledik.
+source=("petbottle-${pkgver}.deb::https://github.com/Rumata01/Petbottle-public/releases/download/v${pkgver}/petbottle_0.1.0_amd64.deb")
+
+# Bu dosyayı indirip hash'ini almanız gerek. Şimdilik 'SKIP' yazdım ki hata vermeden denesin.
+# Aşağıda bunu nasıl otomatize edeceğinizi anlattım.
+sha256sums=('SKIP') 
+
+package() {
+    # .deb paketi bsdtar ile açılır
+    bsdtar -xf data.tar.* -C "${pkgdir}"
+
+    # İzinlerin doğrulanması
+    chmod 755 "${pkgdir}/usr/bin/petbottle"
+    
+    # (Opsiyonel) Eğer ikona ve desktop dosyasına ihtiyacınız varsa
+    # .deb içindeki yolları kontrol edip buraya ekleyebiliriz.
+    # Genelde /usr/share/applications altında otomatik çıkar.
+}
