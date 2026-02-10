@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "petbottle",
+        "title": "PetBottle",
         "width": 800,
         "height": 600
       }
@@ -30,6 +30,26 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "createDesktopShortcut": true,
+        "createStartMenuShortcut": true,
+        "languages": ["English", "Turkish"]
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": ["libwebkit2gtk-4.1-0", "libappindicator3-1"]
+      },
+      "appimage": {
+        "bundleMedia": true
+      }
+    },
+    "macos": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.13"
+    }
   }
 }

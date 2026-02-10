@@ -3,8 +3,11 @@ name: Build & Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -32,11 +35,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      # Linux bağımlılıklarını Tauri v2 için güncelledim
       - name: Install Linux Dependencies
         if: matrix.target == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev javascriptcoregtk-4.1 libsoup-3.0
 
       - name: Install Frontend Dependencies
         run: npm install
@@ -47,7 +51,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'PetBottle ${{ github.ref_name }}'
-          releaseBody: 'PetBottle release ${{ github.ref_name }}'
+          releaseName: "PetBottle ${{ github.ref_name }}"
+          releaseBody: "See the assets to download this version and install."
           releaseDraft: true
           prerelease: false
+          # args komutu opsiyoneldir, config dosyasından okur ama garanti olsun
+          args: --verbose
