@@ -34,14 +34,16 @@
     "windows": {
       "nsis": {
         "installMode": "currentUser",
-        "createDesktopShortcut": true,
-        "createStartMenuShortcut": true
+        "languages": ["English"]
       }
     },
     "linux": {
       "deb": {
         "depends": ["libwebkit2gtk-4.1-0", "libappindicator3-1"]
       }
+    },
+    "macOS": {
+      "frameworks": []
     }
   }
 }
