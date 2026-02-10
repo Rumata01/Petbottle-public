@@ -1,4 +1,4 @@
-# PetBottle Yerel Not Tutma Uygulamasi
+# Petbottle Yerel Not Tutma Uygulamasi
 
 ## Rust + Tauri + React
 
