@@ -35,21 +35,13 @@
       "nsis": {
         "installMode": "currentUser",
         "createDesktopShortcut": true,
-        "createStartMenuShortcut": true,
-        "languages": ["English", "Turkish"]
+        "createStartMenuShortcut": true
       }
     },
     "linux": {
       "deb": {
         "depends": ["libwebkit2gtk-4.1-0", "libappindicator3-1"]
-      },
-      "appimage": {
-        "bundleMedia": true
       }
-    },
-    "macos": {
-      "frameworks": [],
-      "minimumSystemVersion": "10.13"
     }
   }
 }
