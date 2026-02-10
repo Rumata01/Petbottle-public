@@ -1,30 +1,45 @@
 name: Build & Release
 
-on:
-  push:
-    tags:
-      - "v*"
-  workflow_dispatch:
-
 permissions:
   contents: write
 
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
 jobs:
-  build:
+  release:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: ubuntu-22.04
-            target: linux
+          # Windows 64-bit (Modern PC'ler)
           - platform: windows-latest
-            target: windows
+            target: x86_64-pc-windows-msvc
+            args: ""
+            ext: x64-setup.exe
+          
+          # Windows 32-bit (Okul/Eski PC'ler)
+          - platform: windows-latest
+            target: i686-pc-windows-msvc
+            args: "--target i686-pc-windows-msvc"
+            ext: x86-setup.exe
+
+          # Linux & MacOS (Standart)
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            args: ""
+            ext: amd64.deb
           - platform: macos-latest
-            target: macos
+            target: aarch64-apple-darwin
+            args: "--target aarch64-apple-darwin"
+            ext: app.dmg
 
     runs-on: ${{ matrix.platform }}
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -34,10 +49,12 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-      # Linux bağımlılıklarını Tauri v2 için güncelledim
+      # Linux bağımlılıkları
       - name: Install Linux Dependencies
-        if: matrix.target == 'linux'
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libgtk-3-dev javascriptcoregtk-4.1 libsoup-3.0
@@ -45,15 +62,15 @@ jobs:
       - name: Install Frontend Dependencies
         run: npm install
 
-      - name: Build Tauri App
+      # Build ve Upload
+      - name: Build and Upload Assets
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "PetBottle ${{ github.ref_name }}"
-          releaseBody: "See the assets to download this version and install."
-          releaseDraft: true
+          releaseName: 'PetBottle ${{ github.ref_name }}'
+          releaseBody: 'See the assets to download this version and install.'
+          releaseDraft: false
           prerelease: false
-          # args komutu opsiyoneldir, config dosyasından okur ama garanti olsun
-          args: --verbose
+          args: ${{ matrix.args }}
