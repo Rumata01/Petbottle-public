@@ -109,6 +109,11 @@ impl Block {
         Self::new(BlockType::Paragraph, "")
     }
 
+    // Belirli turde bos blok olusturma (liste devami icin)
+    pub fn empty_with_type(block_type: BlockType) -> Self {
+        Self::new(block_type, "")
+    }
+
     //Liste Elemani olusturma
     pub fn bullet_list(content: &str) -> Self {
         Self::new(BlockType::BulletList, content)

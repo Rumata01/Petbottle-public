@@ -26,6 +26,7 @@ pub fn run() {
             commands::delete_block,
             commands::move_block,
             commands::change_block_type,
+            commands::toggle_collapse,
             commands::undo,
             commands::redo,
         ])

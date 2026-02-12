@@ -160,10 +160,18 @@ impl DocumentState {
 
     //Donus: Olusturulan yeni block
 
-    pub fn add_block(&mut self, after_id: &str, exit_to_parent: bool) -> Block {
+    pub fn add_block(
+        &mut self,
+        after_id: &str,
+        exit_to_parent: bool,
+        block_type: Option<BlockType>,
+    ) -> Block {
         self.save_to_history();
 
-        let new_block = Block::empty();
+        let new_block = match block_type {
+            Some(bt) => Block::empty_with_type(bt),
+            None => Block::empty(),
+        };
         let new_block_clone = new_block.clone();
 
         if exit_to_parent {
@@ -367,6 +375,31 @@ impl DocumentState {
         result
     }
 
+    // Toggle blogu ac/kapat
+    pub fn toggle_collapse(&mut self, block_id: &str) -> Option<bool> {
+        fn toggle_recursive(blocks: &mut Vec<Block>, id: &str) -> Option<bool> {
+            for block in blocks.iter_mut() {
+                if block.id == id {
+                    let new_state = !block.is_collapsed.unwrap_or(true);
+                    block.is_collapsed = Some(new_state);
+                    return Some(new_state);
+                }
+                if let Some(ref mut children) = block.children {
+                    if let Some(result) = toggle_recursive(children, id) {
+                        return Some(result);
+                    }
+                }
+            }
+            None
+        }
+
+        let result = toggle_recursive(&mut self.blocks, block_id);
+        if result.is_some() {
+            self.is_dirty = true;
+        }
+        result
+    }
+
     // Yardimdi metotlar
 
     // Bloklari Duzelestir (Flatten)
@@ -541,7 +574,7 @@ mod tests {
         let mut state = DocumentState::new("doc_1", "/test.md", blocks);
 
         // Yeni blok ekle
-        let new_block = state.add_block(&first_id, false);
+        let new_block = state.add_block(&first_id, false, None);
         assert_eq!(state.blocks.len(), 2);
 
         // Yeni bloğu sil
