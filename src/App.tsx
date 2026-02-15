@@ -340,16 +340,20 @@ const BlockContentInner = ({
   onFocusNext,
   shouldMoveCursorToEnd,
   onShowCommandPanel,
+  onToggleCollapse,
+  listIndex,
 }: {
   block: Block;
   onUpdate: (id: string, val: string) => void;
-  onAddNext: (exitToParent?: boolean) => void;
+  onAddNext: (exitToParent?: boolean, blockType?: string) => void;
   onRemove: () => void;
   isFocused: boolean;
   onFocusPrev: () => void;
   onFocusNext: () => void;
   shouldMoveCursorToEnd?: boolean;
   onShowCommandPanel?: (position: { top: number; left: number }) => void;
+  onToggleCollapse?: () => void;
+  listIndex?: number;
 }) => {
   const contentRef = React.useRef<HTMLElement>(null);
   const isHandlingSpecialKey = useRef(false);
@@ -415,7 +419,13 @@ const BlockContentInner = ({
       }
 
       const isEmpty = currentText.trim() === "";
-      onAddNext(isEmpty);
+      // Liste bloklarinda Enter -> ayni turde devam et (bos ise paragraf'a don)
+      const listTypes = ["bullet-list", "numbered-list", "checkbox"];
+      if (listTypes.includes(block.type) && !isEmpty) {
+        onAddNext(false, block.type);
+      } else {
+        onAddNext(isEmpty);
+      }
       return;
     }
 
@@ -535,7 +545,7 @@ const BlockContentInner = ({
       case "numbered-list":
         return (
           <div className="block block--numbered-list">
-            <span className="block-prefix">1.</span>
+            <span className="block-prefix">{(listIndex ?? 0) + 1}.</span>
             {contentElement}
           </div>
         );
@@ -579,7 +589,11 @@ const BlockContentInner = ({
         return (
           <div className={`toggle ${block.isCollapsed ? "" : "open"}`}>
             <div className="toggle-header">
-              <span className="toggle-icon">▶</span>
+              <span className="toggle-icon" onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                onToggleCollapse?.();
+              }}>▶</span>
               {contentElement}
             </div>
           </div>
@@ -587,7 +601,10 @@ const BlockContentInner = ({
 
       case "divider":
         return (
-          <div className="block block--divider">
+          <div className="block block--divider" onClick={(e) => {
+            e.preventDefault();
+            onAddNext(false, "paragraph");
+          }}>
             <hr />
           </div>
         );
@@ -605,6 +622,7 @@ const BlockContent = memo(BlockContentInner, (prev, next) => {
   if (prev.block.id !== next.block.id) return false;
   if (prev.isFocused !== next.isFocused) return false;
   if (prev.shouldMoveCursorToEnd !== next.shouldMoveCursorToEnd) return false;
+  if (prev.listIndex !== next.listIndex) return false;
   if (prev.isFocused && next.isFocused) return true;
   if (next.isFocused) return true;
   return prev.block.content === next.block.content;
@@ -625,11 +643,13 @@ const SortableBlock = ({
   shouldMoveCursorToEnd,
   onMouseDown,
   onShowCommandPanel,
+  onToggleCollapse,
+  listIndex,
 }: {
   block: Block;
   index: number;
   onUpdate: (id: string, val: string) => void;
-  onAddNext: (exitToParent?: boolean) => void;
+  onAddNext: (exitToParent?: boolean, blockType?: string) => void;
   onRemove: () => void;
   isFocused: boolean;
   onFocusPrev: () => void;
@@ -637,6 +657,8 @@ const SortableBlock = ({
   shouldMoveCursorToEnd?: boolean;
   onMouseDown?: () => void;
   onShowCommandPanel?: (position: { top: number; left: number }) => void;
+  onToggleCollapse?: () => void;
+  listIndex?: number;
 }) => {
   const {
     attributes,
@@ -682,6 +704,8 @@ const SortableBlock = ({
         onFocusNext={onFocusNext}
         shouldMoveCursorToEnd={shouldMoveCursorToEnd}
         onShowCommandPanel={onShowCommandPanel}
+        onToggleCollapse={onToggleCollapse}
+        listIndex={listIndex}
       />
     </div>
   );
@@ -698,11 +722,13 @@ interface NestedBlockProps {
   focusedBlockId: string | null;
   shouldMoveCursorToEnd?: boolean;
   onBlockMouseDown: (id: string) => void;
-  onAddBlock: (id: string, exitToParent?: boolean) => void;
+  onAddBlock: (id: string, exitToParent?: boolean, blockType?: string) => void;
   onDeleteBlock: (id: string) => void;
   onFocusBlock: (id: string, direction: "prev" | "next") => void;
   updateBlockContent: (id: string, val: string) => void;
   onShowCommandPanel?: (blockId: string, position: { top: number; left: number }) => void;
+  onToggleCollapse?: (blockId: string) => void;
+  siblings?: Block[];
 }
 
 const NestedSortableBlock = ({
@@ -717,9 +743,25 @@ const NestedSortableBlock = ({
   onFocusBlock,
   updateBlockContent,
   onShowCommandPanel,
+  onToggleCollapse,
+  siblings,
 }: NestedBlockProps) => {
   const hasChildren = block.children && block.children.length > 0;
   const nestedClass = depth > 0 ? `block--nested${depth > 1 ? `-${depth}` : ""}` : "";
+
+  // Numarali liste icin sirali index hesapla
+  const computeListIndex = (): number | undefined => {
+    if (block.type !== "numbered-list" || !siblings) return undefined;
+    let count = 0;
+    for (let i = 0; i < index; i++) {
+      if (siblings[i].type === "numbered-list") {
+        count++;
+      } else {
+        count = 0; // Farkli tur araya girerse sifirla
+      }
+    }
+    return count;
+  };
 
   return (
     <div className={nestedClass}>
@@ -727,7 +769,7 @@ const NestedSortableBlock = ({
         block={block}
         index={index}
         onUpdate={updateBlockContent}
-        onAddNext={(exitToParent) => onAddBlock(block.id, exitToParent)}
+        onAddNext={(exitToParent, blockType) => onAddBlock(block.id, exitToParent, blockType)}
         onRemove={() => onDeleteBlock(block.id)}
         isFocused={focusedBlockId === block.id}
         onFocusPrev={() => onFocusBlock(block.id, "prev")}
@@ -735,6 +777,8 @@ const NestedSortableBlock = ({
         shouldMoveCursorToEnd={shouldMoveCursorToEnd}
         onMouseDown={() => onBlockMouseDown(block.id)}
         onShowCommandPanel={onShowCommandPanel ? (pos) => onShowCommandPanel(block.id, pos) : undefined}
+        onToggleCollapse={onToggleCollapse ? () => onToggleCollapse(block.id) : undefined}
+        listIndex={computeListIndex()}
       />
 
       {/* Nested children */}
@@ -757,6 +801,8 @@ const NestedSortableBlock = ({
               onFocusBlock={onFocusBlock}
               updateBlockContent={updateBlockContent}
               onShowCommandPanel={onShowCommandPanel}
+              onToggleCollapse={onToggleCollapse}
+              siblings={block.children!}
             />
           ))}
         </SortableContext>
@@ -833,16 +879,38 @@ function App() {
   // RUST BACKEND IPC CALLS
   // ----------------------------------------------------------------------------
 
-  // Varsayilan dizini yukle
+  // Varsayilan dizini yukle (localStorage'dan veya backend'ten)
   useEffect(() => {
     async function loadDefaultPath() {
       try {
-        const defaultPath = (await invoke("get_default_path")) as string;
-        setPath(defaultPath);
-        const result = await invoke("list_files", { path: defaultPath });
+        // Onceki dizini localStorage'dan kontrol et
+        const savedPath = localStorage.getItem("petbottle_last_directory");
+        let targetPath: string;
+
+        if (savedPath) {
+          targetPath = savedPath;
+        } else {
+          targetPath = (await invoke("get_default_path")) as string;
+        }
+
+        setPath(targetPath);
+        const result = await invoke("list_files", { path: targetPath });
         setFiles(result as string[]);
+
+        // Basarili ise localStorage'a kaydet
+        localStorage.setItem("petbottle_last_directory", targetPath);
       } catch (error) {
         console.error("Varsayılan dizin yüklenemedi:", error);
+        // localStorage'daki path gecersizse temizle ve default'a don
+        localStorage.removeItem("petbottle_last_directory");
+        try {
+          const defaultPath = (await invoke("get_default_path")) as string;
+          setPath(defaultPath);
+          const result = await invoke("list_files", { path: defaultPath });
+          setFiles(result as string[]);
+        } catch (fallbackError) {
+          console.error("Fallback dizin de yüklenemedi:", fallbackError);
+        }
       }
     }
     loadDefaultPath();
@@ -853,6 +921,8 @@ function App() {
     try {
       const result = await invoke("list_files", { path: path });
       setFiles(result as string[]);
+      // Basarili dizin degisikligini hatirla
+      localStorage.setItem("petbottle_last_directory", path);
     } catch (error) {
       console.error("Hata: ", error);
     }
@@ -978,7 +1048,7 @@ function App() {
     });
   };
 
-  const addBlock = useCallback(async (currentId: string, exitToParent: boolean = false) => {
+  const addBlock = useCallback(async (currentId: string, exitToParent: boolean = false, blockType?: string) => {
     if (!docId) return;
 
     setShouldMoveCursorToEnd(true);
@@ -987,7 +1057,8 @@ function App() {
       const newBlock = await invoke("add_block", {
         docId,
         afterId: currentId,
-        exitToParent
+        exitToParent,
+        blockType: blockType || null
       }) as Block;
 
       const updatedBlocks = await invoke("get_blocks", { docId }) as Block[];
@@ -995,6 +1066,18 @@ function App() {
       setFocusedBlockId(newBlock.id);
     } catch (error) {
       console.error("Blok eklenemedi:", error);
+    }
+  }, [docId]);
+
+  const toggleCollapse = useCallback(async (blockId: string) => {
+    if (!docId) return;
+
+    try {
+      await invoke("toggle_collapse", { docId, blockId });
+      const updatedBlocks = await invoke("get_blocks", { docId }) as Block[];
+      setBlocks(updatedBlocks);
+    } catch (error) {
+      console.error("Toggle durumu degistirilemedi:", error);
     }
   }, [docId]);
 
@@ -1326,6 +1409,8 @@ function App() {
                       setCommandPanelPosition(position);
                       setCommandPanelOpen(true);
                     }}
+                    onToggleCollapse={toggleCollapse}
+                    siblings={blocks}
                   />
                 ))}
               </SortableContext>

@@ -110,8 +110,8 @@ pub fn list_files(path: String) -> Result<Vec<String>, String> {
     for entry in entries {
         let entry = entry.map_err(|_| "Dosya Listelenemedi".to_string())?;
         if let Ok(name) = entry.file_name().into_string() {
-            //Hidden files filter
-            if !name.starts_with('.') && name != ".." {
+            //Hidden files filter + .md uzanti filtresi
+            if !name.starts_with('.') && name != ".." && name.ends_with(".md") {
                 files.push(name);
             }
         }
@@ -136,7 +136,7 @@ pub fn get_default_path() -> Result<String, String> {
 
         //Hosgeldin Dosyasi olustur
         let welcome_file = default_path.join("Hosgeldin.md");
-        let welcome_content = "# PetBottle'a Hosgeldini\n\nBu varsayilan notlar klasorunuzdur.\n\n## Baslarken\n\n- Yeni bir not olusturmak icin Enter tusuna basin\n- Notlarinizi duzenleyin\n- Ctrl-S ile kaydedin\n\nGeri Donuslerinizi mailime yapabilirsiniz (Biryere koyarim)";
+        let welcome_content = "# PetBottle'a Hosgeldiniz!\n\nPetBottle, markdown tabanli modern bir not alma uygulamasidir. Notlarinizi bloklar halinde olusturun, duzenleyin ve yonetin.\n\n## Nasil Kullanilir?\n\nPetBottle'da her sey bloklar uzerinden calisir. Bir blogun icindeyken:\n\n- **Enter** tusuna basarak yeni blok olusturabilirsiniz\n- **/** (slash) tusuna basarak blok turunu degistirebilirsiniz\n- **Backspace** ile bos blogu silebilirsiniz\n\n## Blok Turleri\n\nCommand Panel (/) ile su bloklari olusturabilirsiniz:\n\n1. Basliklar (H1, H2, H3)\n2. Numarali Liste\n3. Madde Isareti Listesi\n4. Yapilacaklar Listesi\n5. Alinti Blogu\n6. Kod Blogu\n7. Acilir Blok (Toggle)\n8. Bilgi Kutusu (Callout)\n9. Ayrac (Divider)\n\n## Klavye Kisayollari\n\n- **Ctrl + S** - Kaydet\n- **Ctrl + Z** - Geri Al\n- **Ctrl + Y** - Ileri Al\n- **/** - Command Panel\n- **Enter** - Yeni blok\n- **Backspace** - Bos bloku sil\n\n## Temalar\n\nSol alt kosedeki tema degistirici ile farkli gorunumler arasinda gecis yapabilirsiniz: Light, Dark, Forest, Ocean ve Sunset.\n\n---\n\nIyi calismalar! Yeni notlar olusturmak icin sol paneli kullanabilirsiniz.";
         fs::write(&welcome_file, welcome_content).ok();
     }
     Ok(default_path.to_string_lossy().to_string())
@@ -209,6 +209,7 @@ pub fn add_block(
     doc_id: String,
     after_id: String,
     exit_to_parent: bool,
+    block_type: Option<String>,
     state: State<AppState>,
 ) -> Result<Block, String> {
     let mut manager = state.manager.lock();
@@ -217,8 +218,34 @@ pub fn add_block(
         .get_document_mut(&doc_id)
         .ok_or_else(|| "Dokuman bulunamadi".to_string())?;
 
-    let new_block = doc.add_block(&after_id, exit_to_parent);
+    // block_type string'ini BlockType enum'a cevir
+    let bt = block_type.and_then(|t| match t.as_str() {
+        "bullet-list" => Some(crate::block::BlockType::BulletList),
+        "numbered-list" => Some(crate::block::BlockType::NumberedList),
+        "checkbox" => Some(crate::block::BlockType::Checkbox),
+        _ => None,
+    });
+
+    // RA bug: false positive, arguments are correct
+    let new_block = doc.add_block(&after_id, exit_to_parent, bt);
     Ok(new_block)
+}
+
+// Toggle blogu ac/kapat
+#[tauri::command]
+pub fn toggle_collapse(
+    doc_id: String,
+    block_id: String,
+    state: State<AppState>,
+) -> Result<bool, String> {
+    let mut manager = state.manager.lock();
+
+    let doc = manager
+        .get_document_mut(&doc_id)
+        .ok_or_else(|| "Dokuman bulunamadi".to_string())?;
+
+    doc.toggle_collapse(&block_id)
+        .ok_or_else(|| "Blok bulunamadi".to_string())
 }
 
 //Blok Sil
@@ -392,6 +419,15 @@ pub fn read_file_content(path: String) -> Result<String, String> {
 pub fn save_file_content(path: String, content: String) -> Result<(), String> {
     let file_path = PathBuf::from(&path);
 
+    // Dosya adında path traversal kontrolü
+    let file_name = file_path
+        .file_name()
+        .ok_or_else(|| "Gecersiz dosya adi".to_string())?
+        .to_string_lossy();
+    if file_name.contains("..") {
+        return Err("Dosya adında geçersiz karakterler var".to_string());
+    }
+
     let parent = file_path
         .parent()
         .ok_or_else(|| "Ust klasor bulunamadi".to_string())?;
@@ -404,6 +440,11 @@ pub fn save_file_content(path: String, content: String) -> Result<(), String> {
     validate_extension(&file_path)?;
 
     let full_path = canonical_parent.join(file_path.file_name().unwrap());
+
+    // Son yolun izin verilen dizinde olduğunu doğrula
+    if !full_path.starts_with(&canonical_parent) {
+        return Err("Dosya yolu izin verilen dizin dışında".to_string());
+    }
 
     let mut file = fs::File::create(&full_path).map_err(|_| "Dosya olusuturulamadi".to_string())?;
 
@@ -431,6 +472,11 @@ pub fn create_file(directory: String, filename: String) -> Result<String, String
         return Err("Dosya adi bos olamaz".to_string());
     }
 
+    // Path traversal koruması — dosya adında / veya .. olamaz
+    if clean_name.contains('/') || clean_name.contains('\\') || clean_name.contains("..") {
+        return Err("Dosya adında geçersiz karakterler var".to_string());
+    }
+
     // .md uzantisi yoksa ekle
     let final_name = if clean_name.ends_with(".md") {
         clean_name.to_string()
@@ -439,6 +485,11 @@ pub fn create_file(directory: String, filename: String) -> Result<String, String
     };
 
     let file_path = canonical_dir.join(&final_name);
+
+    // Oluşturulan yolun hâlâ izin verilen dizinde olduğunu doğrula
+    if !file_path.starts_with(&canonical_dir) {
+        return Err("Dosya yolu izin verilen dizin dışında".to_string());
+    }
 
     // Dosya zaten var mi?
     if file_path.exists() {
@@ -469,7 +520,17 @@ pub fn delete_file(directory: String, filename: String) -> Result<(), String> {
 
     is_path_allowed(&canonical_dir)?;
 
+    // Path traversal koruması — dosya adında / veya .. olamaz
+    if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
+        return Err("Dosya adında geçersiz karakterler var".to_string());
+    }
+
     let file_path = canonical_dir.join(&filename);
+
+    // Oluşturulan yolun hâlâ izin verilen dizinde olduğunu doğrula
+    if !file_path.starts_with(&canonical_dir) {
+        return Err("Dosya yolu izin verilen dizin dışında".to_string());
+    }
 
     // Dosya var mi?
     if !file_path.exists() {
