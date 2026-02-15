@@ -878,6 +878,20 @@ textarea {
     background: transparent;
 }
 
+/* Ocean tema - tum blok metin renklerini okunabilir yap */
+[data-theme="ocean"] .callout-content,
+[data-theme="ocean"] .checklist-text,
+[data-theme="ocean"] .block-prefix,
+[data-theme="ocean"] .toggle-title,
+[data-theme="ocean"] .code-block,
+[data-theme="ocean"] .blockquote {
+    color: var(--ocean-navy);
+}
+
+[data-theme="ocean"] .editor-file-title {
+    color: var(--ocean-navy);
+}
+
 [data-theme="sunset"] {
     --sunset-burgundy: #6d1a36;
     --sunset-wine: #8b2447;
@@ -1116,6 +1130,20 @@ textarea {
 
 [data-theme="sunset"] .editor-wrapper {
     background: transparent;
+}
+
+/* Sunset tema - tum blok metin renklerini okunabilir yap */
+[data-theme="sunset"] .callout-content,
+[data-theme="sunset"] .checklist-text,
+[data-theme="sunset"] .block-prefix,
+[data-theme="sunset"] .toggle-title,
+[data-theme="sunset"] .code-block,
+[data-theme="sunset"] .blockquote {
+    color: var(--sunset-burgundy);
+}
+
+[data-theme="sunset"] .editor-file-title {
+    color: var(--sunset-burgundy);
 }
 
 /* ============================================ App Container - Ana Layout ============================================ */
@@ -2180,10 +2208,12 @@ textarea {
 .block--bullet-list {
     padding-left: 0;
     align-items: center;
+    width: 100%;
 }
 
 .block--numbered-list {
     align-items: center;
+    width: 100%;
 }
 
 .block--quote {
@@ -2710,6 +2740,7 @@ textarea {
     align-items: flex-start;
     gap: 10px;
     margin: 8px 0;
+    width: 100%;
 }
 
 .checklist-checkbox {

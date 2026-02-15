@@ -136,7 +136,7 @@ pub fn get_default_path() -> Result<String, String> {
 
         //Hosgeldin Dosyasi olustur
         let welcome_file = default_path.join("Hosgeldin.md");
-        let welcome_content = "# PetBottle'a Hosgeldini\n\nBu varsayilan notlar klasorunuzdur.\n\n## Baslarken\n\n- Yeni bir not olusturmak icin Enter tusuna basin\n- Notlarinizi duzenleyin\n- Ctrl-S ile kaydedin\n\nGeri Donuslerinizi mailime yapabilirsiniz (Biryere koyarim)";
+        let welcome_content = "# PetBottle'a Hosgeldiniz!\n\nPetBottle, markdown tabanli modern bir not alma uygulamasidir. Notlarinizi bloklar halinde olusturun, duzenleyin ve yonetin.\n\n## Nasil Kullanilir?\n\nPetBottle'da her sey bloklar uzerinden calisir. Bir blogun icindeyken:\n\n- **Enter** tusuna basarak yeni blok olusturabilirsiniz\n- **/** (slash) tusuna basarak blok turunu degistirebilirsiniz\n- **Backspace** ile bos blogu silebilirsiniz\n\n## Blok Turleri\n\nCommand Panel (/) ile su bloklari olusturabilirsiniz:\n\n1. Basliklar (H1, H2, H3)\n2. Numarali Liste\n3. Madde Isareti Listesi\n4. Yapilacaklar Listesi\n5. Alinti Blogu\n6. Kod Blogu\n7. Acilir Blok (Toggle)\n8. Bilgi Kutusu (Callout)\n9. Ayrac (Divider)\n\n## Klavye Kisayollari\n\n- **Ctrl + S** - Kaydet\n- **Ctrl + Z** - Geri Al\n- **Ctrl + Y** - Ileri Al\n- **/** - Command Panel\n- **Enter** - Yeni blok\n- **Backspace** - Bos bloku sil\n\n## Temalar\n\nSol alt kosedeki tema degistirici ile farkli gorunumler arasinda gecis yapabilirsiniz: Light, Dark, Forest, Ocean ve Sunset.\n\n---\n\nIyi calismalar! Yeni notlar olusturmak icin sol paneli kullanabilirsiniz.";
         fs::write(&welcome_file, welcome_content).ok();
     }
     Ok(default_path.to_string_lossy().to_string())
@@ -226,6 +226,7 @@ pub fn add_block(
         _ => None,
     });
 
+    // RA bug: false positive, arguments are correct
     let new_block = doc.add_block(&after_id, exit_to_parent, bt);
     Ok(new_block)
 }

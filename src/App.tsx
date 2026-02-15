@@ -341,6 +341,7 @@ const BlockContentInner = ({
   shouldMoveCursorToEnd,
   onShowCommandPanel,
   onToggleCollapse,
+  listIndex,
 }: {
   block: Block;
   onUpdate: (id: string, val: string) => void;
@@ -352,6 +353,7 @@ const BlockContentInner = ({
   shouldMoveCursorToEnd?: boolean;
   onShowCommandPanel?: (position: { top: number; left: number }) => void;
   onToggleCollapse?: () => void;
+  listIndex?: number;
 }) => {
   const contentRef = React.useRef<HTMLElement>(null);
   const isHandlingSpecialKey = useRef(false);
@@ -543,7 +545,7 @@ const BlockContentInner = ({
       case "numbered-list":
         return (
           <div className="block block--numbered-list">
-            <span className="block-prefix">1.</span>
+            <span className="block-prefix">{(listIndex ?? 0) + 1}.</span>
             {contentElement}
           </div>
         );
@@ -586,14 +588,12 @@ const BlockContentInner = ({
       case "toggle":
         return (
           <div className={`toggle ${block.isCollapsed ? "" : "open"}`}>
-            <div className="toggle-header" onClick={(e) => {
-              // Sadece icon'a tiklayinca toggle et, contentEditable alana degil
-              if ((e.target as HTMLElement).classList.contains('toggle-icon') ||
-                (e.target as HTMLElement).classList.contains('toggle-header')) {
+            <div className="toggle-header">
+              <span className="toggle-icon" onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
                 onToggleCollapse?.();
-              }
-            }}>
-              <span className="toggle-icon">▶</span>
+              }}>▶</span>
               {contentElement}
             </div>
           </div>
@@ -601,8 +601,9 @@ const BlockContentInner = ({
 
       case "divider":
         return (
-          <div className="block block--divider" onClick={() => {
-            onAddNext(false);
+          <div className="block block--divider" onClick={(e) => {
+            e.preventDefault();
+            onAddNext(false, "paragraph");
           }}>
             <hr />
           </div>
@@ -621,6 +622,7 @@ const BlockContent = memo(BlockContentInner, (prev, next) => {
   if (prev.block.id !== next.block.id) return false;
   if (prev.isFocused !== next.isFocused) return false;
   if (prev.shouldMoveCursorToEnd !== next.shouldMoveCursorToEnd) return false;
+  if (prev.listIndex !== next.listIndex) return false;
   if (prev.isFocused && next.isFocused) return true;
   if (next.isFocused) return true;
   return prev.block.content === next.block.content;
@@ -642,6 +644,7 @@ const SortableBlock = ({
   onMouseDown,
   onShowCommandPanel,
   onToggleCollapse,
+  listIndex,
 }: {
   block: Block;
   index: number;
@@ -655,6 +658,7 @@ const SortableBlock = ({
   onMouseDown?: () => void;
   onShowCommandPanel?: (position: { top: number; left: number }) => void;
   onToggleCollapse?: () => void;
+  listIndex?: number;
 }) => {
   const {
     attributes,
@@ -701,6 +705,7 @@ const SortableBlock = ({
         shouldMoveCursorToEnd={shouldMoveCursorToEnd}
         onShowCommandPanel={onShowCommandPanel}
         onToggleCollapse={onToggleCollapse}
+        listIndex={listIndex}
       />
     </div>
   );
@@ -723,6 +728,7 @@ interface NestedBlockProps {
   updateBlockContent: (id: string, val: string) => void;
   onShowCommandPanel?: (blockId: string, position: { top: number; left: number }) => void;
   onToggleCollapse?: (blockId: string) => void;
+  siblings?: Block[];
 }
 
 const NestedSortableBlock = ({
@@ -738,9 +744,24 @@ const NestedSortableBlock = ({
   updateBlockContent,
   onShowCommandPanel,
   onToggleCollapse,
+  siblings,
 }: NestedBlockProps) => {
   const hasChildren = block.children && block.children.length > 0;
   const nestedClass = depth > 0 ? `block--nested${depth > 1 ? `-${depth}` : ""}` : "";
+
+  // Numarali liste icin sirali index hesapla
+  const computeListIndex = (): number | undefined => {
+    if (block.type !== "numbered-list" || !siblings) return undefined;
+    let count = 0;
+    for (let i = 0; i < index; i++) {
+      if (siblings[i].type === "numbered-list") {
+        count++;
+      } else {
+        count = 0; // Farkli tur araya girerse sifirla
+      }
+    }
+    return count;
+  };
 
   return (
     <div className={nestedClass}>
@@ -757,6 +778,7 @@ const NestedSortableBlock = ({
         onMouseDown={() => onBlockMouseDown(block.id)}
         onShowCommandPanel={onShowCommandPanel ? (pos) => onShowCommandPanel(block.id, pos) : undefined}
         onToggleCollapse={onToggleCollapse ? () => onToggleCollapse(block.id) : undefined}
+        listIndex={computeListIndex()}
       />
 
       {/* Nested children */}
@@ -780,6 +802,7 @@ const NestedSortableBlock = ({
               updateBlockContent={updateBlockContent}
               onShowCommandPanel={onShowCommandPanel}
               onToggleCollapse={onToggleCollapse}
+              siblings={block.children!}
             />
           ))}
         </SortableContext>
@@ -1387,6 +1410,7 @@ function App() {
                       setCommandPanelOpen(true);
                     }}
                     onToggleCollapse={toggleCollapse}
+                    siblings={blocks}
                   />
                 ))}
               </SortableContext>
