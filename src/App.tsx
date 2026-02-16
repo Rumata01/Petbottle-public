@@ -921,7 +921,7 @@ function App() {
     initApp();
   }, []);
 
-  const handleSetupComplete = async (selectedPath: string) => {
+  const handleSetupComplete = async (selectedPath: string): Promise<void> => {
     try {
       // Secilen yolu test et ve listele
       const result = await invoke("list_files", { path: selectedPath });
@@ -934,8 +934,8 @@ function App() {
       setIsSetupComplete(true);
     } catch (err) {
       console.error("Setup tamamlanamadi:", err);
-      // SetupScreen icinde hata gosterimi icin buraya bir sey donulebilir
-      // veya SetupScreen kendi icinde handle eder.
+      // Hata durumunda SetupScreen'e hatayi firlat
+      throw err;
     }
   };
 
