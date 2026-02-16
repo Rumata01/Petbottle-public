@@ -20,6 +20,7 @@ import DOMPurify from "dompurify";
 // CSS IMPORTS - Thema Library
 // ----------------------------------------------------------------------------
 import "./styles/thema.min.css";
+import { SetupScreen } from "./SetupScreen";
 
 // ----------------------------------------------------------------------------
 // DND-KIT - Drag & Drop
@@ -832,6 +833,11 @@ function App() {
   const [shouldMoveCursorToEnd, setShouldMoveCursorToEnd] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Setup State
+  const [isSetupComplete, setIsSetupComplete] = useState(() => {
+    return localStorage.getItem("petbottle_setup_complete") === "true";
+  });
+
   // Tema state - güvenli okuma
   const [theme, setTheme] = useState<ThemeName>(() => {
     const savedTheme = localStorage.getItem("theme");
@@ -879,42 +885,59 @@ function App() {
   // RUST BACKEND IPC CALLS
   // ----------------------------------------------------------------------------
 
-  // Varsayilan dizini yukle (localStorage'dan veya backend'ten)
+  // Varsayilan dizini yukle (Setup kontrolu ile)
   useEffect(() => {
-    async function loadDefaultPath() {
+    async function initApp() {
+      // 1. Setup durumu kontrolu
+      const isSetup = localStorage.getItem("petbottle_setup_complete") === "true";
+      const savedPath = localStorage.getItem("petbottle_last_directory");
+
+      if (!isSetup || !savedPath) {
+        setIsSetupComplete(false);
+        return;
+      }
+
+      // 2. Kayitli yolun gecerliligini kontrol et
       try {
-        // Onceki dizini localStorage'dan kontrol et
-        const savedPath = localStorage.getItem("petbottle_last_directory");
-        let targetPath: string;
+        const exists = await invoke<boolean>("check_path_exists", { path: savedPath });
 
-        if (savedPath) {
-          targetPath = savedPath;
-        } else {
-          targetPath = (await invoke("get_default_path")) as string;
-        }
-
-        setPath(targetPath);
-        const result = await invoke("list_files", { path: targetPath });
-        setFiles(result as string[]);
-
-        // Basarili ise localStorage'a kaydet
-        localStorage.setItem("petbottle_last_directory", targetPath);
-      } catch (error) {
-        console.error("Varsayılan dizin yüklenemedi:", error);
-        // localStorage'daki path gecersizse temizle ve default'a don
-        localStorage.removeItem("petbottle_last_directory");
-        try {
-          const defaultPath = (await invoke("get_default_path")) as string;
-          setPath(defaultPath);
-          const result = await invoke("list_files", { path: defaultPath });
+        if (exists) {
+          setPath(savedPath);
+          const result = await invoke("list_files", { path: savedPath });
           setFiles(result as string[]);
-        } catch (fallbackError) {
-          console.error("Fallback dizin de yüklenemedi:", fallbackError);
+          setIsSetupComplete(true);
+        } else {
+          // Yol gecersizse setup ekranina don
+          console.warn("Kayitli yol bulunamadi, kurulum ekranina dönülüyor.");
+          setIsSetupComplete(false);
+          localStorage.removeItem("petbottle_setup_complete");
         }
+      } catch (err) {
+        console.error("Yol kontrolü hatası:", err);
+        setIsSetupComplete(false);
       }
     }
-    loadDefaultPath();
+
+    initApp();
   }, []);
+
+  const handleSetupComplete = async (selectedPath: string) => {
+    try {
+      // Secilen yolu test et ve listele
+      const result = await invoke("list_files", { path: selectedPath });
+      setFiles(result as string[]);
+      setPath(selectedPath);
+
+      // Kaydet
+      localStorage.setItem("petbottle_last_directory", selectedPath);
+      localStorage.setItem("petbottle_setup_complete", "true");
+      setIsSetupComplete(true);
+    } catch (err) {
+      console.error("Setup tamamlanamadi:", err);
+      // SetupScreen icinde hata gosterimi icin buraya bir sey donulebilir
+      // veya SetupScreen kendi icinde handle eder.
+    }
+  };
 
   // Dosya listele
   async function getFiles() {
@@ -1245,6 +1268,11 @@ function App() {
   // ============================================================================
   // RENDER - Thema class'lari ile
   // ============================================================================
+
+
+  if (!isSetupComplete) {
+    return <SetupScreen onComplete={handleSetupComplete} />;
+  }
 
   return (
     <div className="app-container">

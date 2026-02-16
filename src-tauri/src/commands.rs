@@ -22,7 +22,7 @@ use parking_lot::Mutex;
 use tauri::State;
 
 // Standart Libraries
-use std::env;
+
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
@@ -49,10 +49,10 @@ impl Default for AppState {
 
 // Guvenlik
 // Izin verilen dizini kontrol et
+// Izin verilen dizini kontrol et
 fn is_path_allowed(path: &PathBuf) -> Result<(), String> {
     let path_str = path.to_string_lossy();
 
-    // Tehlikeli sismtem dizinlerini engelle
     let forbidden_prefixes = [
         "/etc", "/root", "/var", "/usr", "/bin", "/sbin", "/boot", "/dev", "/proc", "/sys", "/lib",
         "/lib64", "/opt", "/srv", "/run", "/snap",
@@ -60,19 +60,29 @@ fn is_path_allowed(path: &PathBuf) -> Result<(), String> {
 
     for prefix in &forbidden_prefixes {
         if path_str.starts_with(prefix) {
-            return Err("Fuck You Asshole: Sistem dizinlerine erisim yasaktir >3 ".to_string());
+            return Err("Erişim Reddedildi: Sistem dizinlerine erişim yasaktır.".to_string());
         }
     }
 
-    // Kullanicinin home dizini altinda olmali
-    if let Ok(home) = env::var("HOME") {
-        if !path_str.starts_with(&home) {
-            return Err(
-                "Again Fuck You Asshole: Sadece home dizini altina erisim izni var".to_string(),
-            );
+    // Güvenli dizin kontrolü
+    let safe_roots = [
+        dirs::home_dir(),
+        dirs::document_dir(),
+        dirs::desktop_dir(),
+        dirs::download_dir(),
+        dirs::public_dir(),
+        dirs::picture_dir(),
+        dirs::video_dir(),
+    ];
+
+    for root in safe_roots.iter().flatten() {
+        if path.starts_with(root) {
+            return Ok(());
         }
     }
-    Ok(())
+
+    // Eğer bunlardan biri değilse hata.
+    Err("Erişim izni yok: Sadece kullanıcı klasörleri altında çalışabilirsiniz.".to_string())
 }
 
 // Dosya uzantisini kontrol
@@ -126,10 +136,10 @@ pub fn list_files(path: String) -> Result<Vec<String>, String> {
 // Varsayilan Dizini olustur ve dondur
 #[tauri::command]
 pub fn get_default_path() -> Result<String, String> {
-    let home = env::var("HOME").map_err(|_| "Home dizini bulunamadi".to_string())?;
+    let base_dir = dirs::document_dir().ok_or("Belgeler klasörü bulunamadı")?;
 
-    let default_path = PathBuf::from(&home).join("Documents").join("PetBottle"); //RustBottle
-                                                                                 // --needed Folder Create
+    let default_path = base_dir.join("PetBottle");
+
     if !default_path.exists() {
         fs::create_dir_all(&default_path)
             .map_err(|_| "Varsayilan klasor olusturulamadi".to_string())?;
@@ -140,6 +150,20 @@ pub fn get_default_path() -> Result<String, String> {
         fs::write(&welcome_file, welcome_content).ok();
     }
     Ok(default_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn check_path_exists(path: String) -> bool {
+    let path_buf = PathBuf::from(&path);
+
+    // Sembolik linkleri ve ..'ları çözmek için önce canonicalize et
+    if let Ok(canonical_path) = path_buf.canonicalize() {
+        // Sonra izin verilen bir dizinde olup olmadığını kontrol et
+        if is_path_allowed(&canonical_path).is_ok() {
+            return canonical_path.exists();
+        }
+    }
+    false
 }
 // Document Islemleri
 // Dosya parse edilecek

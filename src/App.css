@@ -114,3 +114,71 @@ button {
     background-color: #0f0f0f69;
   }
 }
+
+/* Setup Screen Styles */
+.setup-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background-color: var(--bg-color, #f6f6f6);
+  color: var(--text-color, #0f0f0f);
+}
+
+.setup-card {
+  background-color: var(--card-bg, #ffffff);
+  padding: 3rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  max-width: 500px;
+  width: 90%;
+}
+
+.setup-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.setup-button {
+  margin-top: 2rem;
+  font-size: 1.1rem;
+  padding: 0.8rem 2rem;
+  background-color: #396cd8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.setup-button:hover {
+  background-color: #2a52be;
+}
+
+.setup-error {
+  margin-top: 1rem;
+  color: #ff4d4f;
+  background-color: #fff1f0;
+  padding: 0.8rem;
+  border-radius: 6px;
+  border: 1px solid #ffccc7;
+}
+
+.setup-footer {
+  margin-top: 2rem;
+  font-size: 0.9rem;
+  color: #888;
+}
+
+@media (prefers-color-scheme: dark) {
+  .setup-container {
+      background-color: #2f2f2f;
+      color: #f6f6f6;
+  }
+  .setup-card {
+      background-color: #1a1a1a;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+}

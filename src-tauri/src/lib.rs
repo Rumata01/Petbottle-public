@@ -10,6 +10,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(AppState::new())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::list_files,
             commands::get_default_path,
@@ -29,6 +30,7 @@ pub fn run() {
             commands::toggle_collapse,
             commands::undo,
             commands::redo,
+            commands::check_path_exists,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri uygulamasi baslatilirken hata olustu");
