@@ -31,4 +31,6 @@ uuid = { version = "1", features = ["v4"] }
 
 # Thread-safe state yonetimi icin
 parking_lot = "0.12"
+dirs = "6.0.0"
+tauri-plugin-dialog = "2.6.0"
 
