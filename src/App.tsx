@@ -921,21 +921,83 @@ function App() {
     initApp();
   }, []);
 
-  const handleSetupComplete = async (selectedPath: string) => {
+  const handleSetupComplete = async (selectedPath: string): Promise<void> => {
     try {
-      // Secilen yolu test et ve listele
-      const result = await invoke("list_files", { path: selectedPath });
-      setFiles(result as string[]);
+      // 1. Secilen yolu test et ve listele
+      let result = await invoke("list_files", { path: selectedPath }) as string[];
+
+      // 2. Eger klasor bossa veya md dosyasi yoksa Hosgeldin.md olustur
+      if (result.length === 0) {
+        const welcomeContent = `# PetBottle'a Hoşgeldiniz! 👋
+
+PetBottle, markdown tabanlı modern bir not alma uygulamasıdır. Notlarınızı bloklar halinde oluşturun, düzenleyin ve yönetin.
+
+## Nasıl Kullanılır?
+
+PetBottle'da her şey bloklar üzerinden çalışır. Bir bloğun içindeyken:
+
+- **Enter** tuşuna basarak yeni blok oluşturabilirsiniz
+- **/** (slash) tuşuna basarak blok türünü değiştirebilirsiniz (Başlık, Liste, Kod vb.)
+- **Backspace** ile boş bloğu silebilirsiniz
+- **Sürükle & Bırak** ile blokların yerini değiştirebilirsiniz
+
+## Blok Türleri
+
+Command Panel (/) ile şu blokları oluşturabilirsiniz:
+
+1. Başlıklar (H1, H2, H3)
+2. Numaralı Liste
+3. Madde İşareti Listesi
+4. Yapılacaklar Listesi
+5. Alıntı Bloğu
+6. Kod Bloğu
+7. Açılır Blok (Toggle)
+8. Bilgi Kutusu (Callout)
+9. Ayraç (Divider)
+
+## Klavye Kısayolları
+
+- **Ctrl + S** - Kaydet
+- **Ctrl + Z** - Geri Al
+- **Ctrl + Y** - İleri Al
+- **/** - Command Panel aç
+- **Enter** - Yeni blok ekle
+
+---
+
+İyi çalışmalar! Yeni notlar oluşturmak için sol paneli kullanabilirsiniz.`;
+
+        // Dosyayi olustur
+        await invoke("save_file_content", {
+          path: `${selectedPath}/Hosgeldin.md`.replace("//", "/"),
+          content: welcomeContent
+        });
+
+        // Listeyi tekrar guncelle
+        result = await invoke("list_files", { path: selectedPath }) as string[];
+      }
+
+      setFiles(result);
       setPath(selectedPath);
 
       // Kaydet
       localStorage.setItem("petbottle_last_directory", selectedPath);
       localStorage.setItem("petbottle_setup_complete", "true");
       setIsSetupComplete(true);
+
+      // Varsa Hosgeldin.md dosyasini otomatik ac
+      if (result.includes("Hosgeldin.md")) {
+        // State update sonrasi calismasi icin kisa bir gecikme veya useEffect kullanilabilir
+        // Ancak burada state henuz tam oturmamis olabilir, bu yuzden App component render olduktan sonra
+        // kullanici kendisi secebilir veya biz burada setSelectedFile yapabiliriz ama
+        // openFile fonksiyonu path state'ine bagli oldugu icin burada cagirmak riskli olabilir.
+        // Basitlik adina dosyayi secmesini bekleyelim veya dosya listesinde gorecektir.
+      }
+
     } catch (err) {
       console.error("Setup tamamlanamadi:", err);
-      // SetupScreen icinde hata gosterimi icin buraya bir sey donulebilir
-      // veya SetupScreen kendi icinde handle eder.
+      // Hata durumunda SetupScreen'e hatayi firlat
+      throw err;
     }
   };
 
