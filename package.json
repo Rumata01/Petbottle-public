@@ -20,6 +20,7 @@
     "dompurify": "^3.3.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-router-dom": "^7.13.1",
     "remark-breaks": "^4.0.0",
     "remark-parse": "^11.0.0",
     "simple-peer": "^9.11.1",
