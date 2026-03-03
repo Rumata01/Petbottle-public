@@ -2432,6 +2432,68 @@ textarea {
     opacity: 1;
 }
 
+/* Toggle children wrapper — drag-handle destekli çocuk bloklar */
+.toggle-children-wrapper {
+    margin-left: 24px;
+    padding-left: 12px;
+    border-left: 2px solid var(--border-secondary);
+    margin-top: 4px;
+    margin-bottom: 4px;
+    transition: border-color 0.2s ease;
+}
+
+.toggle-children-wrapper:hover {
+    border-left-color: var(--accent-primary);
+}
+
+/* ============================================ Drop Indicator - Sürükleme Göstergesi ============================================ */
+.drop-indicator {
+    position: absolute;
+    pointer-events: none;
+    z-index: 100;
+    transition: opacity 0.15s ease;
+}
+
+.drop-indicator--above {
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #3b82f6;
+    border-radius: 2px;
+}
+
+.drop-indicator--below {
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #3b82f6;
+    border-radius: 2px;
+}
+
+.drop-indicator--right {
+    top: 0;
+    bottom: 0;
+    right: -2px;
+    width: 3px;
+    background: #10b981;
+    border-radius: 2px;
+}
+
+.drop-indicator--left {
+    top: 0;
+    bottom: 0;
+    left: -2px;
+    width: 3px;
+    background: #f59e0b;
+    border-radius: 2px;
+}
+
+.block.drop-target {
+    position: relative;
+}
+
 [data-theme="dark"] .toggle-header:hover {
     background-color: var(--bg-tertiary);
 }

@@ -602,10 +602,21 @@ const BlockContentInner = ({
 
       case "divider":
         return (
-          <div className="block block--divider" onClick={(e) => {
-            e.preventDefault();
-            onAddNext(false, "paragraph");
-          }}>
+          <div
+            className="block block--divider"
+            tabIndex={0}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onAddNext(false, "paragraph");
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onAddNext(false, "paragraph");
+              }
+            }}
+          >
             <hr />
           </div>
         );
@@ -782,31 +793,33 @@ const NestedSortableBlock = ({
         listIndex={computeListIndex()}
       />
 
-      {/* Nested children */}
-      {hasChildren && (
-        <SortableContext
-          items={block.children!.map((c) => c.id)}
-          strategy={verticalListSortingStrategy}
-        >
-          {block.children!.map((child, childIndex) => (
-            <NestedSortableBlock
-              key={child.id}
-              block={child}
-              index={childIndex}
-              depth={depth + 1}
-              focusedBlockId={focusedBlockId}
-              shouldMoveCursorToEnd={shouldMoveCursorToEnd}
-              onBlockMouseDown={onBlockMouseDown}
-              onAddBlock={onAddBlock}
-              onDeleteBlock={onDeleteBlock}
-              onFocusBlock={onFocusBlock}
-              updateBlockContent={updateBlockContent}
-              onShowCommandPanel={onShowCommandPanel}
-              onToggleCollapse={onToggleCollapse}
-              siblings={block.children!}
-            />
-          ))}
-        </SortableContext>
+      {/* Nested children — toggle durumuna göre göster/gizle */}
+      {hasChildren && (block.type !== "toggle" || !block.isCollapsed) && (
+        <div className={block.type === "toggle" ? "toggle-children-wrapper" : ""}>
+          <SortableContext
+            items={block.children!.map((c) => c.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {block.children!.map((child, childIndex) => (
+              <NestedSortableBlock
+                key={child.id}
+                block={child}
+                index={childIndex}
+                depth={depth + 1}
+                focusedBlockId={focusedBlockId}
+                shouldMoveCursorToEnd={shouldMoveCursorToEnd}
+                onBlockMouseDown={onBlockMouseDown}
+                onAddBlock={onAddBlock}
+                onDeleteBlock={onDeleteBlock}
+                onFocusBlock={onFocusBlock}
+                updateBlockContent={updateBlockContent}
+                onShowCommandPanel={onShowCommandPanel}
+                onToggleCollapse={onToggleCollapse}
+                siblings={block.children!}
+              />
+            ))}
+          </SortableContext>
+        </div>
       )}
     </div>
   );
