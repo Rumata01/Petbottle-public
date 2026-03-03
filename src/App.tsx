@@ -32,6 +32,8 @@ import {
   useSensor,
   useSensors,
   DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
 } from "@dnd-kit/core";
 
 import {
@@ -644,6 +646,13 @@ const BlockContent = memo(BlockContentInner, (prev, next) => {
 // SORTABLE BLOCK COMPONENT - Thema class'lari ile
 // ============================================================================
 
+type DropPosition = "above" | "below" | "right" | "left";
+
+interface DropIndicatorState {
+  targetId: string;
+  position: DropPosition;
+}
+
 const SortableBlock = ({
   block,
   onUpdate,
@@ -657,6 +666,7 @@ const SortableBlock = ({
   onShowCommandPanel,
   onToggleCollapse,
   listIndex,
+  dropIndicator,
 }: {
   block: Block;
   index: number;
@@ -671,6 +681,7 @@ const SortableBlock = ({
   onShowCommandPanel?: (position: { top: number; left: number }) => void;
   onToggleCollapse?: () => void;
   listIndex?: number;
+  dropIndicator?: DropIndicatorState | null;
 }) => {
   const {
     attributes,
@@ -687,13 +698,29 @@ const SortableBlock = ({
     transition,
   };
 
+  const isDropTarget = dropIndicator?.targetId === block.id;
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`block ${isFocused ? "focused" : ""} ${isDragging ? "dragging" : ""}`}
+      className={`block ${isFocused ? "focused" : ""} ${isDragging ? "dragging" : ""} ${isDropTarget ? "drop-target" : ""}`}
       onMouseDown={onMouseDown}
     >
+      {/* Drop indicators */}
+      {isDropTarget && dropIndicator?.position === "above" && (
+        <div className="drop-indicator drop-indicator--above" />
+      )}
+      {isDropTarget && dropIndicator?.position === "below" && (
+        <div className="drop-indicator drop-indicator--below" />
+      )}
+      {isDropTarget && dropIndicator?.position === "right" && (
+        <div className="drop-indicator drop-indicator--right" />
+      )}
+      {isDropTarget && dropIndicator?.position === "left" && (
+        <div className="drop-indicator drop-indicator--left" />
+      )}
+
       {/* Drag handle */}
       <div
         ref={setActivatorNodeRef}
@@ -741,6 +768,7 @@ interface NestedBlockProps {
   onShowCommandPanel?: (blockId: string, position: { top: number; left: number }) => void;
   onToggleCollapse?: (blockId: string) => void;
   siblings?: Block[];
+  dropIndicator?: DropIndicatorState | null;
 }
 
 const NestedSortableBlock = ({
@@ -757,6 +785,7 @@ const NestedSortableBlock = ({
   onShowCommandPanel,
   onToggleCollapse,
   siblings,
+  dropIndicator,
 }: NestedBlockProps) => {
   const hasChildren = block.children && block.children.length > 0;
   const nestedClass = depth > 0 ? `block--nested${depth > 1 ? `-${depth}` : ""}` : "";
@@ -791,6 +820,7 @@ const NestedSortableBlock = ({
         onShowCommandPanel={onShowCommandPanel ? (pos) => onShowCommandPanel(block.id, pos) : undefined}
         onToggleCollapse={onToggleCollapse ? () => onToggleCollapse(block.id) : undefined}
         listIndex={computeListIndex()}
+        dropIndicator={dropIndicator}
       />
 
       {/* Nested children — toggle durumuna göre göster/gizle */}
@@ -816,6 +846,7 @@ const NestedSortableBlock = ({
                 onShowCommandPanel={onShowCommandPanel}
                 onToggleCollapse={onToggleCollapse}
                 siblings={block.children!}
+                dropIndicator={dropIndicator}
               />
             ))}
           </SortableContext>
@@ -1317,28 +1348,103 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
   }, [blocks]);
 
   // ----------------------------------------------------------------------------
-  // DRAG & DROP
+  // DRAG & DROP — Görsel gösterge sistemi
   // ----------------------------------------------------------------------------
+
+  const [dropIndicator, setDropIndicator] = useState<DropIndicatorState | null>(null);
+
+  const handleDragStart = useCallback((_event: DragStartEvent) => {
+    // Sürükleme başladı — gelecekte kullanılabilir
+  }, []);
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) {
+      setDropIndicator(null);
+      return;
+    }
+
+    // Mouse pozisyonu hesapla
+    const mouseY = (event.activatorEvent as MouseEvent)?.clientY || 0;
+    const currentMouseY = mouseY + (event.delta?.y || 0);
+    const currentMouseX = (event.activatorEvent as MouseEvent)?.clientX + (event.delta?.x || 0) || 0;
+
+    // Over rect'i direkt kullan — dnd-kit'in kendi rect hesaplaması
+    let targetRect: DOMRect | null = null;
+
+    // Hedef element'i ID ile bul
+    const targetEl = document.querySelector(`[data-sortable-id="${over.id}"]`) as HTMLElement;
+    if (targetEl) {
+      targetRect = targetEl.getBoundingClientRect();
+    } else {
+      // Fallback: tüm block'ları tara
+      const allBlocks = document.querySelectorAll('.block');
+      for (const el of allBlocks) {
+        const sortableId = el.closest('[style]')?.querySelector('.drag-handle')?.parentElement;
+        if (sortableId) {
+          const rect = sortableId.getBoundingClientRect();
+          if (currentMouseY >= rect.top && currentMouseY <= rect.bottom) {
+            targetRect = rect;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!targetRect) {
+      // Son çare: basit üst/alt hesaplaması
+      setDropIndicator({
+        targetId: over.id as string,
+        position: "below",
+      });
+      return;
+    }
+
+    const relativeY = (currentMouseY - targetRect.top) / targetRect.height;
+    const relativeX = (currentMouseX - targetRect.left) / targetRect.width;
+
+    let position: DropPosition;
+    if (relativeX > 0.75) {
+      position = "right"; // Çocuk olarak ekleme (nesting)
+    } else if (relativeY < 0.3) {
+      position = "above";
+    } else if (relativeY > 0.7) {
+      position = "below";
+    } else {
+      position = "below"; // Varsayılan
+    }
+
+    setDropIndicator({
+      targetId: over.id as string,
+      position,
+    });
+  }, []);
 
   const handleDragEnd = useCallback(async (event: DragEndEvent) => {
     const { active, over } = event;
+    const currentIndicator = dropIndicator;
+
+    // Temizle
+    setDropIndicator(null);
+
     if (!over || active.id === over.id || !docId) return;
 
-    const isShiftPressed = (event.activatorEvent as MouseEvent)?.shiftKey || false;
+    // Gösterge pozisyonuna göre asChild belirle
+    const asChild = currentIndicator?.position === "right";
 
     try {
       const updatedBlocks = await invoke("move_block", {
         docId,
         blockId: active.id as string,
         targetId: over.id as string,
-        asChild: isShiftPressed,
+        asChild,
       }) as Block[];
 
       setBlocks(updatedBlocks);
     } catch (error) {
       console.error("Blok tasinamadi:", error);
     }
-  }, [docId]);
+  }, [docId, dropIndicator]);
 
   // ============================================================================
   // RENDER - Thema class'lari ile
@@ -1485,6 +1591,8 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
               onDragEnd={handleDragEnd}
             >
               <SortableContext
@@ -1514,6 +1622,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
                     }}
                     onToggleCollapse={toggleCollapse}
                     siblings={blocks}
+                    dropIndicator={dropIndicator}
                   />
                 ))}
               </SortableContext>
