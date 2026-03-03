@@ -2227,14 +2227,25 @@ textarea {
 }
 
 .block--divider {
-    padding: 8px 0;
+    padding: 16px 0;
     cursor: pointer;
+    width: 100%;
+}
+
+.block--divider:hover {
+    background-color: rgba(128, 128, 128, 0.06);
+    border-radius: 4px;
 }
 
 .block--divider hr {
     border: none;
-    border-top: 1px solid var(--border-primary);
+    border-top: 2px solid var(--border-primary);
     margin: 0;
+    opacity: 0.7;
+}
+
+.block--divider:hover hr {
+    opacity: 1;
 }
 
 /* ============================================ Drag Handle Component ============================================ */
