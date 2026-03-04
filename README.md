@@ -1,3 +1,6 @@
-# Petbottle Yerel Not Tutma Uygulamasi
+## Petbottle Yerel Not Tutma Uygulaması
 
-# Detayli Proje Sunumu Yakinda Yapilacaktir...
+- İki farklı uygulamanın gözüme hoş gelen özelliklerini bir araya getirmeka
+  amacıyla hobi olarak geliştirmeye başladığım; not tutma uygulamasıdır.
+
+- Uygulama ' 3.1.X ' sürümüne kadar geliştirilecek olup herhangi bir değiklik GitHub üzerinden bildirilecektir.
