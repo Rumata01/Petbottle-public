@@ -1247,8 +1247,7 @@ textarea {
 
 .editor-wrapper {
     max-width: 900px;
-    margin: 0;
-    margin-right: auto;
+    margin: 0 auto 0 0;
     padding: 40px 40px 40px 30px;
     background: transparent;
 }
@@ -2227,14 +2226,67 @@ textarea {
 }
 
 .block--divider {
-    padding: 8px 0;
+    padding: 16px 0;
     cursor: pointer;
+    width: 100%;
+    min-height: 8px;
 }
 
-.block--divider hr {
-    border: none;
-    border-top: 1px solid var(--border-primary);
-    margin: 0;
+.block--divider:hover {
+    background-color: rgba(128, 128, 128, 0.08);
+    border-radius: 4px;
+}
+
+.block--divider .divider-text {
+    color: var(--border-secondary);
+    font-size: 14px;
+    letter-spacing: -2px;
+    user-select: none;
+    line-height: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0.8;
+    text-align: center;
+}
+
+.block--divider:hover .divider-text {
+    color: var(--text-tertiary);
+    opacity: 1;
+}
+
+[data-theme="dark"] .block--divider .divider-text {
+    color: var(--border-secondary);
+}
+
+[data-theme="dark"] .block--divider:hover .divider-text {
+    color: var(--text-tertiary);
+}
+
+[data-theme="forest"] .block--divider .divider-text {
+    color: var(--accent-primary);
+    opacity: 0.5;
+}
+
+[data-theme="forest"] .block--divider:hover .divider-text {
+    opacity: 1;
+}
+
+[data-theme="ocean"] .block--divider .divider-text {
+    color: var(--accent-primary);
+    opacity: 0.5;
+}
+
+[data-theme="ocean"] .block--divider:hover .divider-text {
+    opacity: 1;
+}
+
+[data-theme="sunset"] .block--divider .divider-text {
+    color: var(--accent-primary);
+    opacity: 0.5;
+}
+
+[data-theme="sunset"] .block--divider:hover .divider-text {
+    opacity: 1;
 }
 
 /* ============================================ Drag Handle Component ============================================ */
@@ -2419,6 +2471,68 @@ textarea {
 .toggle.open .toggle-content {
     max-height: 2000px;
     opacity: 1;
+}
+
+/* Toggle children wrapper — drag-handle destekli çocuk bloklar */
+.toggle-children-wrapper {
+    margin-left: 24px;
+    padding-left: 12px;
+    border-left: 2px solid var(--border-secondary);
+    margin-top: 4px;
+    margin-bottom: 4px;
+    transition: border-color 0.2s ease;
+}
+
+.toggle-children-wrapper:hover {
+    border-left-color: var(--accent-primary);
+}
+
+/* ============================================ Drop Indicator - Sürükleme Göstergesi ============================================ */
+.drop-indicator {
+    position: absolute;
+    pointer-events: none;
+    z-index: 100;
+    transition: opacity 0.15s ease;
+}
+
+.drop-indicator--above {
+    top: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #3b82f6;
+    border-radius: 2px;
+}
+
+.drop-indicator--below {
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: #3b82f6;
+    border-radius: 2px;
+}
+
+.drop-indicator--right {
+    top: 0;
+    bottom: 0;
+    right: -2px;
+    width: 3px;
+    background: #10b981;
+    border-radius: 2px;
+}
+
+.drop-indicator--left {
+    top: 0;
+    bottom: 0;
+    left: -2px;
+    width: 3px;
+    background: #f59e0b;
+    border-radius: 2px;
+}
+
+.block.drop-target {
+    position: relative;
 }
 
 [data-theme="dark"] .toggle-header:hover {

@@ -122,8 +122,7 @@ impl DocumentState {
     //nested block, scan full tree
 
     pub fn update_block(&mut self, block_id: &str, new_content: &str) -> bool {
-        // frist save the history
-        self.save_to_history();
+        // Debounce mantigi geregi, history'ye hemen kaydetmiyoruz (前端 cagiracak)
 
         // Recursive helper: Blogu bul ve guncelle
         fn update_recursive(blocks: &mut Vec<Block>, id: &str, content: &str) -> bool {
@@ -151,6 +150,11 @@ impl DocumentState {
         result
     }
 
+    // History'ye kaydetme isiltesi (Debounce sonrasi frontend tarafindan cagirilir)
+    pub fn save_content_snapshot(&mut self) {
+        self.save_to_history();
+    }
+
     // Block Add
 
     //Call 'ENTER'
@@ -175,11 +179,22 @@ impl DocumentState {
         let new_block_clone = new_block.clone();
 
         if exit_to_parent {
-            // Parent seviyesine cik
-            // Simdilik normal ekleme yap
+            // Parent seviyesine cik (double enter / bos blok)
             self.add_sibling_block(after_id, new_block);
         } else {
-            self.add_sibling_block(after_id, new_block);
+            // Toggle blogu ise, yeni blogu child olarak ekle
+            let is_toggle = self
+                .find_block(after_id)
+                .map(|b| b.block_type == BlockType::Toggle)
+                .unwrap_or(false);
+
+            if is_toggle {
+                // Toggle'in is_collapsed'ini false yap (acik hale getir)
+                self.set_collapsed(after_id, false);
+                self.add_as_child(after_id, new_block);
+            } else {
+                self.add_sibling_block(after_id, new_block);
+            }
         }
 
         self.is_dirty = true;
@@ -355,6 +370,13 @@ impl DocumentState {
         ) -> bool {
             for block in blocks.iter_mut() {
                 if block.id == id {
+                    // Toggle'a dönüşürken is_collapsed ayarla
+                    if new_type == BlockType::Toggle {
+                        block.is_collapsed = Some(true);
+                    } else if block.block_type == BlockType::Toggle {
+                        // Toggle'dan başka tipe dönüşürken is_collapsed temizle
+                        block.is_collapsed = None;
+                    }
                     block.block_type = new_type;
                     block.depth = depth;
                     return true;
@@ -369,6 +391,38 @@ impl DocumentState {
         }
 
         let result = change_type_recursive(&mut self.blocks, block_id, new_type, depth);
+        if result {
+            self.is_dirty = true;
+        }
+        result
+    }
+
+    // Blok depth seviyesini dusur
+    pub fn decrease_depth(&mut self, block_id: &str) -> bool {
+        self.save_to_history();
+
+        fn decrease_recursive(blocks: &mut Vec<Block>, id: &str) -> bool {
+            for block in blocks.iter_mut() {
+                if block.id == id {
+                    if let Some(d) = block.depth {
+                        if d > 0 {
+                            block.depth = Some(d - 1);
+                        } else {
+                            block.depth = None;
+                        }
+                    }
+                    return true;
+                }
+                if let Some(ref mut children) = block.children {
+                    if decrease_recursive(children, id) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+
+        let result = decrease_recursive(&mut self.blocks, block_id);
         if result {
             self.is_dirty = true;
         }
@@ -398,6 +452,25 @@ impl DocumentState {
             self.is_dirty = true;
         }
         result
+    }
+
+    // Toggle blogu belirli bir duruma ayarla
+    fn set_collapsed(&mut self, block_id: &str, collapsed: bool) {
+        fn set_recursive(blocks: &mut Vec<Block>, id: &str, collapsed: bool) -> bool {
+            for block in blocks.iter_mut() {
+                if block.id == id {
+                    block.is_collapsed = Some(collapsed);
+                    return true;
+                }
+                if let Some(ref mut children) = block.children {
+                    if set_recursive(children, id, collapsed) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        set_recursive(&mut self.blocks, block_id, collapsed);
     }
 
     // Yardimdi metotlar
@@ -535,7 +608,9 @@ mod tests {
         let mut state = DocumentState::new("doc_1", "/test.md", blocks);
 
         // Degisiklik yap
+        state.save_content_snapshot();
         state.update_block(&id, "Degisiklik 1");
+        state.save_content_snapshot();
         state.update_block(&id, "Degisiklik 2");
 
         // History durumu:
