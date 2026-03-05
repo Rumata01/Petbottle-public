@@ -1247,8 +1247,7 @@ textarea {
 
 .editor-wrapper {
     max-width: 900px;
-    margin: 0;
-    margin-right: auto;
+    margin: 0 auto 0 0;
     padding: 40px 40px 40px 30px;
     background: transparent;
 }
@@ -2230,21 +2229,63 @@ textarea {
     padding: 16px 0;
     cursor: pointer;
     width: 100%;
+    min-height: 8px;
 }
 
 .block--divider:hover {
-    background-color: rgba(128, 128, 128, 0.06);
+    background-color: rgba(128, 128, 128, 0.08);
     border-radius: 4px;
 }
 
-.block--divider hr {
-    border: none;
-    border-top: 2px solid var(--border-primary);
-    margin: 0;
-    opacity: 0.7;
+.block--divider .divider-text {
+    color: var(--border-secondary);
+    font-size: 14px;
+    letter-spacing: -2px;
+    user-select: none;
+    line-height: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0.8;
+    text-align: center;
 }
 
-.block--divider:hover hr {
+.block--divider:hover .divider-text {
+    color: var(--text-tertiary);
+    opacity: 1;
+}
+
+[data-theme="dark"] .block--divider .divider-text {
+    color: var(--border-secondary);
+}
+
+[data-theme="dark"] .block--divider:hover .divider-text {
+    color: var(--text-tertiary);
+}
+
+[data-theme="forest"] .block--divider .divider-text {
+    color: var(--accent-primary);
+    opacity: 0.5;
+}
+
+[data-theme="forest"] .block--divider:hover .divider-text {
+    opacity: 1;
+}
+
+[data-theme="ocean"] .block--divider .divider-text {
+    color: var(--accent-primary);
+    opacity: 0.5;
+}
+
+[data-theme="ocean"] .block--divider:hover .divider-text {
+    opacity: 1;
+}
+
+[data-theme="sunset"] .block--divider .divider-text {
+    color: var(--accent-primary);
+    opacity: 0.5;
+}
+
+[data-theme="sunset"] .block--divider:hover .divider-text {
     opacity: 1;
 }
 

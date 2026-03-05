@@ -225,6 +225,20 @@ pub fn update_block(
         Err("Blok bulunamadi".to_string())
     }
 }
+
+// History'ye snapshot al
+#[tauri::command]
+pub fn save_content_snapshot(doc_id: String, state: State<AppState>) -> Result<(), String> {
+    let mut manager = state.manager.lock();
+
+    let doc = manager
+        .get_document_mut(&doc_id)
+        .ok_or_else(|| "Dokuman bulunamadi".to_string())?;
+
+    doc.save_content_snapshot();
+    Ok(())
+}
+
 // Yeni Blok Ekle
 
 // Olusturulan yeni blok
@@ -338,6 +352,26 @@ pub fn change_block_type(
     };
 
     if doc.change_block_type(&block_id, block_type, depth) {
+        Ok(())
+    } else {
+        Err("Blok bulunamadi".to_string())
+    }
+}
+
+// Blok depth azalt
+#[tauri::command]
+pub fn decrease_depth(
+    doc_id: String,
+    block_id: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let mut manager = state.manager.lock();
+
+    let doc = manager
+        .get_document_mut(&doc_id)
+        .ok_or_else(|| "Dokuman bulunamadi".to_string())?;
+
+    if doc.decrease_depth(&block_id) {
         Ok(())
     } else {
         Err("Blok bulunamadi".to_string())

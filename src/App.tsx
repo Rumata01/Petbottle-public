@@ -21,6 +21,7 @@ import DOMPurify from "dompurify";
 // ----------------------------------------------------------------------------
 import "./styles/thema.min.css";
 import { SetupScreen } from "./SetupScreen";
+import ContentEditable, { ContentEditableEvent } from "react-contenteditable";
 
 // ----------------------------------------------------------------------------
 // DND-KIT - Drag & Drop
@@ -276,6 +277,39 @@ const CommandPanel = memo(({ isOpen, position, onSelect, onClose }: CommandPanel
 
   if (!isOpen) return null;
 
+  // Viewport sinir kontrolu (clamping)
+  const PANEL_WIDTH = 420;
+  const PANEL_MAX_HEIGHT = 450;
+  const MARGIN = 8;
+
+  const viewportW = window.innerWidth;
+  const viewportH = window.innerHeight;
+
+  // Yatay clamp: panelin saga tasmamasi icin
+  let clampedLeft = position.left;
+  if (clampedLeft + PANEL_WIDTH + MARGIN > viewportW) {
+    clampedLeft = viewportW - PANEL_WIDTH - MARGIN;
+  }
+  if (clampedLeft < MARGIN) {
+    clampedLeft = MARGIN;
+  }
+
+  // Dikey clamp: asagida yer yoksa yukari ac
+  let clampedTop = position.top;
+  const spaceBelow = viewportH - position.top;
+  const spaceAbove = position.top;
+
+  if (spaceBelow < PANEL_MAX_HEIGHT + MARGIN && spaceAbove > spaceBelow) {
+    // Yukarida daha fazla yer var — paneli yukariya dogru ac
+    clampedTop = Math.max(MARGIN, position.top - PANEL_MAX_HEIGHT);
+  } else {
+    // Asagida ac ama viewport disina cikmasin
+    clampedTop = Math.min(position.top, viewportH - PANEL_MAX_HEIGHT - MARGIN);
+    if (clampedTop < MARGIN) {
+      clampedTop = MARGIN;
+    }
+  }
+
   return (
     <>
       <div className="command-backdrop" onClick={onClose} />
@@ -284,8 +318,8 @@ const CommandPanel = memo(({ isOpen, position, onSelect, onClose }: CommandPanel
         className="command-panel"
         style={{
           position: "fixed",
-          top: position.top,
-          left: position.left,
+          top: clampedTop,
+          left: clampedLeft,
         }}
       >
         <div className="command-search-container">
@@ -338,6 +372,8 @@ const BlockContentInner = ({
   onUpdate,
   onAddNext,
   onRemove,
+  onDemoteBlock,
+  onDecreaseDepth,
   isFocused,
   onFocusPrev,
   onFocusNext,
@@ -350,6 +386,8 @@ const BlockContentInner = ({
   onUpdate: (id: string, val: string) => void;
   onAddNext: (exitToParent?: boolean, blockType?: string) => void;
   onRemove: () => void;
+  onDemoteBlock?: () => void;
+  onDecreaseDepth?: () => void;
   isFocused: boolean;
   onFocusPrev: () => void;
   onFocusNext: () => void;
@@ -362,26 +400,26 @@ const BlockContentInner = ({
   const isHandlingSpecialKey = useRef(false);
 
   // Input handler
-  const handleInput = (e: React.FormEvent<HTMLElement>) => {
+  const handleInput = (e: ContentEditableEvent) => {
     if (isHandlingSpecialKey.current) {
       isHandlingSpecialKey.current = false;
       return;
     }
 
-    const newText = e.currentTarget.innerText
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
-    onUpdate(block.id, newText);
+    const newHtml = e.target.value;
+    onUpdate(block.id, newHtml);
   };
 
-  // Focus yonetimi
+  // Focus state degistiginde veya content degistiginde focus'u ayarla
   useEffect(() => {
     if (isFocused && contentRef.current) {
       contentRef.current.focus();
+      // Ogeyi ortalayacak sekilde ve dumduz kaydir
+      contentRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+
       if (shouldMoveCursorToEnd) {
-        const range = document.createRange();
         const sel = window.getSelection();
+        const range = document.createRange();
         range.selectNodeContents(contentRef.current);
         range.collapse(false);
         sel?.removeAllRanges();
@@ -413,15 +451,12 @@ const BlockContentInner = ({
       e.preventDefault();
       isHandlingSpecialKey.current = true;
 
-      const currentText = (contentRef.current?.innerText || "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
+      const currentHtml = contentRef.current?.innerHTML || "";
       if (contentRef.current) {
-        onUpdate(block.id, currentText);
+        onUpdate(block.id, currentHtml);
       }
 
-      const isEmpty = currentText.trim() === "";
+      const isEmpty = currentHtml.trim() === "" || currentHtml === "<br>";
       // Liste bloklarinda Enter -> ayni turde devam et (bos ise paragraf'a don)
       const listTypes = ["bullet-list", "numbered-list", "checkbox"];
       if (listTypes.includes(block.type) && !isEmpty) {
@@ -432,13 +467,32 @@ const BlockContentInner = ({
       return;
     }
 
-    // Backspace - Bos blokta silme
+    // Backspace - Akilli silme mantigi
     if (e.key === "Backspace") {
       const text = (e.target as HTMLElement).innerText;
 
       if (text.trim() === "") {
         e.preventDefault();
         isHandlingSpecialKey.current = true;
+
+        // Ozel tip kontrolu: once paragrafa donustur
+        const specialTypes = ["heading", "bullet-list", "numbered-list",
+          "checkbox", "quote", "code", "callout", "toggle"];
+        if (specialTypes.includes(block.type)) {
+          // Blogu paragrafa demote et
+          if (onDemoteBlock) {
+            onDemoteBlock();
+          }
+          return;
+        }
+
+        // 2. Depth kontrolu: depth > 0 ise once deriligi azalt
+        if (block.depth && block.depth > 0 && onDecreaseDepth) {
+          onDecreaseDepth();
+          return;
+        }
+
+        // Paragraf tipindeyse ve depth 0 → sil ve onceki bloga gec
         onRemove();
         return;
       }
@@ -467,8 +521,8 @@ const BlockContentInner = ({
           isHandlingSpecialKey.current = true;
 
           if (contentRef.current) {
-            const currentText = contentRef.current.innerText;
-            onUpdate(block.id, currentText);
+            const currentHtml = contentRef.current.innerHTML;
+            onUpdate(block.id, currentHtml);
           }
 
           onFocusPrev();
@@ -481,8 +535,8 @@ const BlockContentInner = ({
           isHandlingSpecialKey.current = true;
 
           if (contentRef.current) {
-            const currentText = contentRef.current.innerText;
-            onUpdate(block.id, currentText);
+            const currentHtml = contentRef.current.innerHTML;
+            onUpdate(block.id, currentHtml);
           }
 
           onFocusNext();
@@ -518,21 +572,17 @@ const BlockContentInner = ({
   // Blok turune gore render
   const renderBlockContent = () => {
     const contentElement = (
-      <div
-        ref={contentRef as React.RefObject<HTMLDivElement>}
+      <ContentEditable
+        innerRef={contentRef as React.RefObject<HTMLElement>}
         className={`block-content ${getBlockClass()}`}
-        contentEditable
-        suppressContentEditableWarning={true}
-        onInput={handleInput}
+        html={DOMPurify.sanitize(block.content, {
+          ALLOWED_TAGS: ["b", "i", "em", "strong", "a", "br", "code"],
+          ALLOWED_ATTR: ["href", "target", "rel"],
+          ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):)/i, // Sadece http, https, mailto
+          FORBID_ATTR: ["onclick", "onerror", "onload"], // Event handler'ları engelle
+        })}
+        onChange={handleInput}
         onKeyDown={handleKeyDown}
-        dangerouslySetInnerHTML={{
-          __html: DOMPurify.sanitize(block.content, {
-            ALLOWED_TAGS: ["b", "i", "em", "strong", "a", "br", "code"],
-            ALLOWED_ATTR: ["href", "target", "rel"],
-            ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):)/i, // Sadece http, https, mailto
-            FORBID_ATTR: ["onclick", "onerror", "onload"], // Event handler'ları engelle
-          }),
-        }}
       />
     );
 
@@ -590,7 +640,7 @@ const BlockContentInner = ({
 
       case "toggle":
         return (
-          <div className={`toggle ${block.isCollapsed ? "" : "open"}`}>
+          <div className={`toggle ${block.isCollapsed === false ? "open" : ""}`}>
             <div className="toggle-header">
               <span className="toggle-icon" onClick={(e) => {
                 e.stopPropagation();
@@ -616,10 +666,19 @@ const BlockContentInner = ({
               if (e.key === "Enter") {
                 e.preventDefault();
                 onAddNext(false, "paragraph");
+              } else if (e.key === "Backspace" || e.key === "Delete") {
+                e.preventDefault();
+                onRemove();
+              } else if (e.key === "ArrowUp") {
+                e.preventDefault();
+                onFocusPrev();
+              } else if (e.key === "ArrowDown") {
+                e.preventDefault();
+                onFocusNext();
               }
             }}
           >
-            <hr />
+            <div className="divider-text">{"────────────────────────────────────────"}</div>
           </div>
         );
 
@@ -637,6 +696,8 @@ const BlockContent = memo(BlockContentInner, (prev, next) => {
   if (prev.isFocused !== next.isFocused) return false;
   if (prev.shouldMoveCursorToEnd !== next.shouldMoveCursorToEnd) return false;
   if (prev.listIndex !== next.listIndex) return false;
+  if (prev.onDemoteBlock !== next.onDemoteBlock) return false;
+  if (prev.onDecreaseDepth !== next.onDecreaseDepth) return false;
   if (prev.isFocused && next.isFocused) return true;
   if (next.isFocused) return true;
   return prev.block.content === next.block.content;
@@ -658,6 +719,8 @@ const SortableBlock = ({
   onUpdate,
   onAddNext,
   onRemove,
+  onDemoteBlock,
+  onDecreaseDepth,
   isFocused,
   onFocusPrev,
   onFocusNext,
@@ -673,6 +736,8 @@ const SortableBlock = ({
   onUpdate: (id: string, val: string) => void;
   onAddNext: (exitToParent?: boolean, blockType?: string) => void;
   onRemove: () => void;
+  onDemoteBlock?: () => void;
+  onDecreaseDepth?: () => void;
   isFocused: boolean;
   onFocusPrev: () => void;
   onFocusNext: () => void;
@@ -692,6 +757,23 @@ const SortableBlock = ({
     transition,
     isDragging,
   } = useSortable({ id: block.id });
+
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!contextMenuPos) return;
+
+    const handleClickOutside = () => {
+      setContextMenuPos(null);
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("contextmenu", handleClickOutside);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("contextmenu", handleClickOutside);
+    };
+  }, [contextMenuPos]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -728,9 +810,58 @@ const SortableBlock = ({
         {...listeners}
         className="drag-handle"
         contentEditable={false}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setContextMenuPos({ x: e.clientX, y: e.clientY });
+        }}
       >
         ⠿
       </div>
+
+      {/* Context Menu for Block Deletion */}
+      {contextMenuPos && (
+        <div
+          style={{
+            position: "fixed",
+            top: contextMenuPos.y,
+            left: contextMenuPos.x,
+            background: "var(--surface-base, #fff)",
+            border: "1px solid var(--border-primary, #ccc)",
+            borderRadius: "6px",
+            padding: "4px",
+            zIndex: 9999,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            style={{
+              background: "none",
+              border: "none",
+              color: "#dc2626",
+              padding: "6px 12px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              borderRadius: "4px",
+              width: "100%",
+              fontSize: "14px",
+              fontWeight: 500
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = "rgba(220, 38, 38, 0.1)"}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = "transparent"}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+              setContextMenuPos(null);
+            }}
+          >
+            🗑️ Bloğu Sil
+          </button>
+        </div>
+      )}
 
       {/* Block content */}
       <BlockContent
@@ -738,6 +869,8 @@ const SortableBlock = ({
         onUpdate={onUpdate}
         onAddNext={onAddNext}
         onRemove={onRemove}
+        onDemoteBlock={onDemoteBlock}
+        onDecreaseDepth={onDecreaseDepth}
         isFocused={isFocused}
         onFocusPrev={onFocusPrev}
         onFocusNext={onFocusNext}
@@ -763,6 +896,8 @@ interface NestedBlockProps {
   onBlockMouseDown: (id: string) => void;
   onAddBlock: (id: string, exitToParent?: boolean, blockType?: string) => void;
   onDeleteBlock: (id: string) => void;
+  onDemoteBlock?: (id: string) => void;
+  onDecreaseDepth?: (id: string) => void;
   onFocusBlock: (id: string, direction: "prev" | "next") => void;
   updateBlockContent: (id: string, val: string) => void;
   onShowCommandPanel?: (blockId: string, position: { top: number; left: number }) => void;
@@ -780,6 +915,8 @@ const NestedSortableBlock = ({
   onBlockMouseDown,
   onAddBlock,
   onDeleteBlock,
+  onDemoteBlock,
+  onDecreaseDepth,
   onFocusBlock,
   updateBlockContent,
   onShowCommandPanel,
@@ -812,6 +949,8 @@ const NestedSortableBlock = ({
         onUpdate={updateBlockContent}
         onAddNext={(exitToParent, blockType) => onAddBlock(block.id, exitToParent, blockType)}
         onRemove={() => onDeleteBlock(block.id)}
+        onDemoteBlock={onDemoteBlock ? () => onDemoteBlock(block.id) : undefined}
+        onDecreaseDepth={onDecreaseDepth ? () => onDecreaseDepth(block.id) : undefined}
         isFocused={focusedBlockId === block.id}
         onFocusPrev={() => onFocusBlock(block.id, "prev")}
         onFocusNext={() => onFocusBlock(block.id, "next")}
@@ -841,6 +980,8 @@ const NestedSortableBlock = ({
                 onBlockMouseDown={onBlockMouseDown}
                 onAddBlock={onAddBlock}
                 onDeleteBlock={onDeleteBlock}
+                onDemoteBlock={onDemoteBlock}
+                onDecreaseDepth={onDecreaseDepth}
                 onFocusBlock={onFocusBlock}
                 updateBlockContent={updateBlockContent}
                 onShowCommandPanel={onShowCommandPanel}
@@ -876,6 +1017,9 @@ function App() {
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [shouldMoveCursorToEnd, setShouldMoveCursorToEnd] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+
+  // Debounce ref for history
+  const historyDebounceRef = useRef<NodeJS.Timeout | null>(null);
 
   // Setup State
   const [isSetupComplete, setIsSetupComplete] = useState(() => {
@@ -1156,10 +1300,25 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
   const updateBlockContent = useCallback(async (id: string, newContent: string) => {
     if (!docId) return;
 
+    // UI'da aninda guncelle
     setBlocks(prev => updateBlockRecursive(prev, id, newContent));
 
     try {
+      // Backend tarafında bloğun içeriğini güncelle
       await invoke("update_block", { docId, blockId: id, content: newContent });
+
+      // Debounced History
+      if (historyDebounceRef.current) {
+        clearTimeout(historyDebounceRef.current);
+      }
+      historyDebounceRef.current = setTimeout(async () => {
+        try {
+          await invoke("save_content_snapshot", { docId });
+        } catch (error) {
+          console.error("History kaydedilemedi:", error);
+        }
+      }, 500);
+
     } catch (error) {
       console.error("Blok guncellenemedi:", error);
     }
@@ -1238,6 +1397,24 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
       setBlocks(updatedBlocks);
     } catch (error) {
       console.error("Blok turu degistirilemedi:", error);
+    }
+  }, [docId]);
+
+  // Blogu paragrafa donustur (backspace ile demote)
+  const demoteBlock = useCallback(async (blockId: string) => {
+    if (!docId) return;
+    await changeBlockType(blockId, "paragraph");
+  }, [docId, changeBlockType]);
+
+  // Blogun derinligini (depth) azalt
+  const decreaseDepth = useCallback(async (blockId: string) => {
+    if (!docId) return;
+    try {
+      await invoke("decrease_depth", { docId, blockId });
+      const updatedBlocks = await invoke("get_blocks", { docId }) as Block[];
+      setBlocks(updatedBlocks);
+    } catch (error) {
+      console.error("Depth azaltilamadi:", error);
     }
   }, [docId]);
 
@@ -1613,6 +1790,8 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
                     }}
                     onAddBlock={addBlock}
                     onDeleteBlock={deleteBlock}
+                    onDemoteBlock={demoteBlock}
+                    onDecreaseDepth={decreaseDepth}
                     onFocusBlock={focusBlock}
                     updateBlockContent={updateBlockContent}
                     onShowCommandPanel={(blockId, position) => {
