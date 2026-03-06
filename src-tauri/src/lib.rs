@@ -18,6 +18,8 @@ pub fn run() {
             commands::save_file_content,
             commands::create_file,
             commands::delete_file,
+            commands::create_directory,
+            commands::delete_directory,
             commands::open_document,
             commands::close_document,
             commands::save_document,

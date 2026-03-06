@@ -25,7 +25,8 @@ use tauri::State;
 
 use std::fs;
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use serde::{Deserialize, Serialize};
 
 //Global State
 pub struct AppState {
@@ -51,15 +52,13 @@ impl Default for AppState {
 // Izin verilen dizini kontrol et
 // Izin verilen dizini kontrol et
 fn is_path_allowed(path: &PathBuf) -> Result<(), String> {
-    let path_str = path.to_string_lossy();
-
     let forbidden_prefixes = [
         "/etc", "/root", "/var", "/usr", "/bin", "/sbin", "/boot", "/dev", "/proc", "/sys", "/lib",
         "/lib64", "/opt", "/srv", "/run", "/snap",
     ];
 
     for prefix in &forbidden_prefixes {
-        if path_str.starts_with(prefix) {
+        if path.starts_with(prefix) {
             return Err("Erişim Reddedildi: Sistem dizinlerine erişim yasaktır.".to_string());
         }
     }
@@ -96,9 +95,71 @@ fn validate_extension(path: &PathBuf) -> Result<(), String> {
 
 // Dosya Islemleri
 
-//Klasordeki dosyalari listele
+#[derive(Serialize, Deserialize)]
+pub struct FileNode {
+    pub name: String,
+    pub path: String, // relative to the base directory, or absolute (for simplicity we will use absolute)
+    pub is_dir: bool,
+    pub children: Option<Vec<FileNode>>,
+}
+
+// Helper: Rekürsif olarak dosya ağacını oluşturur
+fn build_file_tree(dir: &Path, allowed_base: &Path) -> Result<Vec<FileNode>, String> {
+    let mut nodes = Vec::new();
+
+    let entries = fs::read_dir(dir).map_err(|_| "Dizin okunamadi".to_string())?;
+
+    for entry in entries {
+        let entry = entry.map_err(|_| "Dosya Listelenemedi".to_string())?;
+        let path = entry.path();
+        
+        let file_name = entry.file_name().to_string_lossy().to_string();
+
+        // Hidden files filter
+        if file_name.starts_with('.') || file_name == ".." {
+            continue;
+        }
+
+        if path.is_dir() {
+            let children = build_file_tree(&path, allowed_base)?;
+            nodes.push(FileNode {
+                name: file_name,
+                path: path.to_string_lossy().to_string(),
+                is_dir: true,
+                children: Some(children),
+            });
+        } else if path.is_file() {
+            // Sadece .md uzantılı dosyaları ekle
+            if file_name.ends_with(".md") {
+                nodes.push(FileNode {
+                    name: file_name,
+                    path: path.to_string_lossy().to_string(),
+                    is_dir: false,
+                    children: None,
+                });
+            }
+        }
+    }
+
+    // Klasörler önce, sonra dosyalar, alfabetik sıralı
+    nodes.sort_by(|a, b| {
+        if a.is_dir != b.is_dir {
+            if a.is_dir {
+                std::cmp::Ordering::Less
+            } else {
+                std::cmp::Ordering::Greater
+            }
+        } else {
+            a.name.cmp(&b.name)
+        }
+    });
+
+    Ok(nodes)
+}
+
+//Klasordeki dosyalari listele (Nested)
 #[tauri::command]
-pub fn list_files(path: String) -> Result<Vec<String>, String> {
+pub fn list_files(path: String) -> Result<Vec<FileNode>, String> {
     //Bos path kontrolu
     if path.trim().is_empty() {
         return Err("Bir dizin yolu gir".to_string());
@@ -112,25 +173,7 @@ pub fn list_files(path: String) -> Result<Vec<String>, String> {
     //Security Check
     is_path_allowed(&base_path)?;
 
-    //Dizini read
-    let entries = fs::read_dir(&base_path).map_err(|_| "Dizin okunamadi".to_string())?;
-
-    let mut files = Vec::new();
-
-    for entry in entries {
-        let entry = entry.map_err(|_| "Dosya Listelenemedi".to_string())?;
-        if let Ok(name) = entry.file_name().into_string() {
-            //Hidden files filter + .md uzanti filtresi
-            if !name.starts_with('.') && name != ".." && name.ends_with(".md") {
-                files.push(name);
-            }
-        }
-    }
-
-    //Alfabetik Sirala
-    files.sort();
-
-    Ok(files)
+    build_file_tree(&base_path, &base_path)
 }
 
 // Varsayilan Dizini olustur ve dondur
@@ -482,7 +525,7 @@ pub fn save_file_content(path: String, content: String) -> Result<(), String> {
         .file_name()
         .ok_or_else(|| "Gecersiz dosya adi".to_string())?
         .to_string_lossy();
-    if file_name.contains("..") {
+    if file_name.contains("..") || file_name.contains('\0') || file_name.contains('/') || file_name.contains('\\') {
         return Err("Dosya adında geçersiz karakterler var".to_string());
     }
 
@@ -531,7 +574,7 @@ pub fn create_file(directory: String, filename: String) -> Result<String, String
     }
 
     // Path traversal koruması — dosya adında / veya .. olamaz
-    if clean_name.contains('/') || clean_name.contains('\\') || clean_name.contains("..") {
+    if clean_name.contains('/') || clean_name.contains('\\') || clean_name.contains("..") || clean_name.contains('\0') {
         return Err("Dosya adında geçersiz karakterler var".to_string());
     }
 
@@ -579,7 +622,7 @@ pub fn delete_file(directory: String, filename: String) -> Result<(), String> {
     is_path_allowed(&canonical_dir)?;
 
     // Path traversal koruması — dosya adında / veya .. olamaz
-    if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
+    if filename.contains('/') || filename.contains('\\') || filename.contains("..") || filename.contains('\0') {
         return Err("Dosya adında geçersiz karakterler var".to_string());
     }
 
@@ -600,6 +643,75 @@ pub fn delete_file(directory: String, filename: String) -> Result<(), String> {
 
     // Dosyayi sil
     fs::remove_file(&file_path).map_err(|e| format!("Dosya silinemedi: {}", e))?;
+
+    Ok(())
+}
+
+// Klasör oluştur
+#[tauri::command]
+pub fn create_directory(directory: String, dirname: String) -> Result<String, String> {
+    let dir_path = PathBuf::from(&directory);
+
+    // Dizin kontrolu
+    let canonical_dir = dir_path
+        .canonicalize()
+        .map_err(|_| "Gecersiz dizin yolu".to_string())?;
+
+    is_path_allowed(&canonical_dir)?;
+
+    let clean_name = dirname.trim();
+    if clean_name.is_empty() {
+        return Err("Klasör adı boş olamaz".to_string());
+    }
+
+    // Path traversal koruması
+    if clean_name.contains('/') || clean_name.contains('\\') || clean_name.contains("..") || clean_name.contains('\0') {
+        return Err("Klasör adında geçersiz karakterler var".to_string());
+    }
+
+    let new_dir_path = canonical_dir.join(&clean_name);
+
+    if !new_dir_path.starts_with(&canonical_dir) {
+        return Err("Klasör yolu izin verilen dizin dışında".to_string());
+    }
+
+    if new_dir_path.exists() {
+        return Err("Bu isimde bir klasör veya dosya zaten mevcut".to_string());
+    }
+
+    fs::create_dir(&new_dir_path).map_err(|e| format!("Klasör oluşturulamadı: {}", e))?;
+
+    Ok(clean_name.to_string())
+}
+
+// Klasör sil
+#[tauri::command]
+pub fn delete_directory(directory: String, dirname: String) -> Result<(), String> {
+    let dir_path = PathBuf::from(&directory);
+
+    // Dizin kontrolu
+    let canonical_dir = dir_path
+        .canonicalize()
+        .map_err(|_| "Gecersiz dizin yolu".to_string())?;
+
+    is_path_allowed(&canonical_dir)?;
+
+    // Path traversal koruması
+    if dirname.contains('/') || dirname.contains('\\') || dirname.contains("..") || dirname.contains('\0') {
+        return Err("Klasör adında geçersiz karakterler var".to_string());
+    }
+
+    let target_dir_path = canonical_dir.join(&dirname);
+
+    if !target_dir_path.starts_with(&canonical_dir) {
+        return Err("Klasör yolu izin verilen dizin dışında".to_string());
+    }
+
+    if !target_dir_path.exists() || !target_dir_path.is_dir() {
+        return Err("Klasör bulunamadı veya bir dizin değil".to_string());
+    }
+
+    fs::remove_dir_all(&target_dir_path).map_err(|e| format!("Klasör silinemedi: {}", e))?;
 
     Ok(())
 }

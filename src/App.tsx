@@ -68,13 +68,14 @@ interface BlockTypeOption {
   description?: string;
 }
 
-// Tema turleri
-type ThemeName = "light" | "dark" | "forest" | "ocean" | "sunset";
-
-interface ThemeOption {
-  name: ThemeName;
-  label: string;
-  icon: string;
+// Tema türleri ve bileşenleri Settings modülünden
+import { ThemeName, ThemeSwitcher } from "./Settings";
+import { Sidebar } from "./Sidebar";
+export interface FileNode {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  children?: FileNode[];
 }
 
 // ============================================================================
@@ -100,73 +101,7 @@ const BLOCK_TYPES: BlockTypeOption[] = [
   { type: "toggle", label: "Açılır Blok", icon: "▶", description: "Genişletilebilir içerik" },
 ];
 
-const THEMES: ThemeOption[] = [
-  { name: "light", label: "Light", icon: "☀️" },
-  { name: "dark", label: "Dark", icon: "🌙" },
-  { name: "forest", label: "Forest", icon: "🌲" },
-  { name: "ocean", label: "Ocean", icon: "🌊" },
-  { name: "sunset", label: "Sunset", icon: "🌅" },
-];
-
-// ============================================================================
-// THEME SWITCHER COMPONENT
-// ============================================================================
-
-interface ThemeSwitcherProps {
-  currentTheme: ThemeName;
-  onThemeChange: (theme: ThemeName) => void;
-}
-
-const ThemeSwitcher = ({ currentTheme, onThemeChange }: ThemeSwitcherProps) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Dışarı tıklama
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isOpen]);
-
-  const currentThemeData = THEMES.find(t => t.name === currentTheme);
-
-  return (
-    <div ref={menuRef} className={`theme-switcher ${isOpen ? "open" : ""}`}>
-      <button
-        className="theme-switcher-toggle"
-        onClick={() => setIsOpen(!isOpen)}
-        title="Tema değiştir"
-      >
-        {currentThemeData?.icon || "🎨"}
-      </button>
-
-      <div className="theme-switcher-menu">
-        {THEMES.map((theme) => (
-          <div
-            key={theme.name}
-            className={`theme-option ${currentTheme === theme.name ? "active" : ""}`}
-            onClick={() => {
-              onThemeChange(theme.name);
-              setIsOpen(false);
-            }}
-          >
-            <div className={`theme-option-preview theme-option-preview--${theme.name}`}>
-              {theme.icon}
-            </div>
-            <span className="theme-option-label">{theme.label}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
+// Theme list has been moved to Settings component
 
 // ============================================================================
 // COMMAND PANEL COMPONENT - Thema class'lari ile
@@ -410,6 +345,27 @@ const BlockContentInner = ({
     onUpdate(block.id, newHtml);
   };
 
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const htmlText = e.clipboardData.getData("text/html");
+    const plainText = e.clipboardData.getData("text/plain");
+    
+    let textToInsert = "";
+    if (htmlText) {
+       textToInsert = DOMPurify.sanitize(htmlText, {
+         ALLOWED_TAGS: ["b", "i", "em", "strong", "a", "br", "code"],
+         ALLOWED_ATTR: ["href", "target", "rel"],
+         ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):)/i,
+         FORBID_ATTR: ["onclick", "onerror", "onload"],
+       });
+    } else {
+       // Escape basic plain text formatting to avoid implicit tags
+       textToInsert = plainText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+    
+    document.execCommand("insertHTML", false, textToInsert);
+  };
+
   // Focus state degistiginde veya content degistiginde focus'u ayarla
   useEffect(() => {
     if (isFocused && contentRef.current) {
@@ -583,6 +539,7 @@ const BlockContentInner = ({
         })}
         onChange={handleInput}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
       />
     );
 
@@ -1006,7 +963,7 @@ function App() {
   // STATE
   // ----------------------------------------------------------------------------
   const [path, setPath] = useState("");
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<FileNode[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>("");
 
   // Document state
@@ -1092,7 +1049,7 @@ function App() {
         if (exists) {
           setPath(savedPath);
           const result = await invoke("list_files", { path: savedPath });
-          setFiles(result as string[]);
+          setFiles(result as FileNode[]);
           setIsSetupComplete(true);
         } else {
           // Yol gecersizse setup ekranina don
@@ -1112,7 +1069,7 @@ function App() {
   const handleSetupComplete = async (selectedPath: string): Promise<void> => {
     try {
       // 1. Secilen yolu test et ve listele
-      let result = await invoke("list_files", { path: selectedPath }) as string[];
+      let result = await invoke("list_files", { path: selectedPath }) as FileNode[];
 
       // 2. Eger klasor bossa veya md dosyasi yoksa Hosgeldin.md olustur
       if (result.length === 0) {
@@ -1162,7 +1119,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         });
 
         // Listeyi tekrar guncelle
-        result = await invoke("list_files", { path: selectedPath }) as string[];
+        result = await invoke("list_files", { path: selectedPath }) as FileNode[];
       }
 
       setFiles(result);
@@ -1174,7 +1131,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
       setIsSetupComplete(true);
 
       // Varsa Hosgeldin.md dosyasini otomatik ac
-      if (result.includes("Hosgeldin.md")) {
+      if (result.some(f => f.name === "Hosgeldin.md")) {
         // State update sonrasi calismasi icin kisa bir gecikme veya useEffect kullanilabilir
         // Ancak burada state henuz tam oturmamis olabilir, bu yuzden App component render olduktan sonra
         // kullanici kendisi secebilir veya biz burada setSelectedFile yapabiliriz ama
@@ -1193,7 +1150,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
   async function getFiles() {
     try {
       const result = await invoke("list_files", { path: path });
-      setFiles(result as string[]);
+      setFiles(result as FileNode[]);
       // Basarili dizin degisikligini hatirla
       localStorage.setItem("petbottle_last_directory", path);
     } catch (error) {
@@ -1211,7 +1168,9 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
       setBlocks([]);
       setFocusedBlockId(null);
 
-      const fullPath = path.endsWith("/") ? `${path}${file}` : `${path}/${file}`;
+      // Dosya zaten absolute path olarak geliyor openFile'a (artık folder tıklandığında path.join edilecek UI tarafında ya da Node içinden path alınacak).
+      // Biz doğrudan 'file' pathini alıp açabiliriz.
+      const fullPath = file;
 
       const result = await invoke("open_document", { path: fullPath }) as [string, Block[]];
       const [newDocId, parsedBlocks] = result;
@@ -1230,24 +1189,26 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
   }
 
   // Yeni dosya olustur (performansli)
-  const createFile = useCallback(async (filename: string) => {
-    if (!path || !filename.trim()) {
+  const createFile = useCallback(async (dirPath: string, filename: string) => {
+    if (!dirPath || !filename.trim()) {
       showToastMessage("Dosya adı boş olamaz", "error");
       return;
     }
 
     try {
       const newFileName = await invoke<string>("create_file", {
-        directory: path,
+        directory: dirPath,
         filename: filename.trim(),
       });
 
-      // Dosya listesini guncelle
-      setFiles(prev => [...prev, newFileName].sort());
+      getFiles(); // Ağaç yapısını tekrar çek
       showToastMessage(`"${newFileName}" oluşturuldu`, "success");
 
       // Yeni dosyayi ac
-      await openFile(newFileName);
+      // Path tam olarak birleştirilecek. FileNode'lardaki path formatına göre açıyoruz.
+      const sep = dirPath.endsWith("/") || dirPath.endsWith("\\") ? "" : "/";
+      const fullPath = `${dirPath}${sep}${newFileName}`;
+      await openFile(fullPath);
     } catch (error) {
       console.error("Dosya olusturulamadi:", error);
       showToastMessage("Dosya oluşturulamadı: " + error, "error");
@@ -1255,20 +1216,20 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
   }, [path]);
 
   // Dosya sil (performansli)
-  const deleteFile = useCallback(async (filename: string) => {
-    if (!path || !filename) return;
+  const deleteFile = useCallback(async (dirPath: string, filename: string, fullPath: string) => {
+    if (!dirPath || !filename) return;
 
     try {
       await invoke("delete_file", {
-        directory: path,
+        directory: dirPath,
         filename: filename,
       });
 
-      // Dosya listesinden cikar
-      setFiles(prev => prev.filter(f => f !== filename));
+      // Ağacı tekrar çek
+      getFiles();
 
       // Silinen dosya acik dosya ise kapat
-      if (selectedFile === filename) {
+      if (selectedFile === fullPath) {
         if (docId) {
           await invoke("close_document", { docId });
         }
@@ -1283,7 +1244,46 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
       console.error("Dosya silinemedi:", error);
       showToastMessage("Dosya silinemedi: " + error, "error");
     }
-  }, [path, selectedFile, docId]);
+  }, [selectedFile, docId]);
+
+  // Yeni klasör oluştur
+  const createDirectory = useCallback(async (dirPath: string, dirname: string) => {
+    if (!dirPath || !dirname.trim()) {
+      showToastMessage("Klasör adı boş olamaz", "error");
+      return;
+    }
+
+    try {
+      const newDirName = await invoke<string>("create_directory", {
+        directory: dirPath,
+        dirname: dirname.trim(),
+      });
+
+      getFiles();
+      showToastMessage(`Klasör "${newDirName}" oluşturuldu`, "success");
+    } catch (error) {
+      console.error("Klasör olusturulamadi:", error);
+      showToastMessage("Klasör oluşturulamadı: " + error, "error");
+    }
+  }, []);
+
+  // Klasör sil
+  const deleteDirectory = useCallback(async (dirPath: string, dirname: string) => {
+    if (!dirPath || !dirname) return;
+
+    try {
+      await invoke("delete_directory", {
+        directory: dirPath,
+        dirname: dirname,
+      });
+
+      getFiles();
+      showToastMessage(`Klasör "${dirname}" silindi`, "success");
+    } catch (error) {
+      console.error("Klasör silinemedi:", error);
+      showToastMessage("Klasör silinemedi: " + error, "error");
+    }
+  }, []);
 
   // Toast helper
   const showToastMessage = (message: string, type: "success" | "error" | "info" = "success") => {
@@ -1648,109 +1648,22 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
 
       {/* Sidebar */}
       {sidebarOpen && (
-        <aside className="app-sidebar">
-          {/* Header - Path ve Buton */}
-          <div className="app-sidebar-header">
-            <div className="search-container">
-              <input
-                className="search-input"
-                value={path}
-                onChange={(e) => setPath(e.target.value)}
-                placeholder="/home/kullanici/Notlarim/"
-              />
-            </div>
-            <button className="sidebar-btn" onClick={getFiles}>
-              <span className="sidebar-btn-icon">📁</span>
-              Klasörü Aç
-            </button>
-
-            {/* Yeni Dosya Butonlari */}
-            {files.length > 0 && (
-              <div className="sidebar-file-actions">
-                {showNewFileInput ? (
-                  <div className="new-file-input-container">
-                    <input
-                      className="search-input"
-                      value={newFileName}
-                      onChange={(e) => setNewFileName(e.target.value)}
-                      placeholder="Dosya adı..."
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && newFileName.trim()) {
-                          createFile(newFileName);
-                          setNewFileName("");
-                          setShowNewFileInput(false);
-                        } else if (e.key === "Escape") {
-                          setNewFileName("");
-                          setShowNewFileInput(false);
-                        }
-                      }}
-                    />
-                    <button
-                      className="sidebar-btn sidebar-btn-small"
-                      onClick={() => {
-                        if (newFileName.trim()) {
-                          createFile(newFileName);
-                          setNewFileName("");
-                          setShowNewFileInput(false);
-                        }
-                      }}
-                    >
-                      ✓
-                    </button>
-                    <button
-                      className="sidebar-btn sidebar-btn-small sidebar-btn-cancel"
-                      onClick={() => {
-                        setNewFileName("");
-                        setShowNewFileInput(false);
-                      }}
-                    >
-                      ✗
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    className="sidebar-btn sidebar-btn-secondary"
-                    onClick={() => setShowNewFileInput(true)}
-                  >
-                    + Yeni Dosya
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* File list */}
-          <div className="app-sidebar-content">
-            {files.map((file, i) => (
-              <div
-                key={i}
-                className={`file-card ${selectedFile === file ? "active" : ""}`}
-                onClick={() => openFile(file)}
-              >
-                <span className="file-card-name">
-                  {file.replace(/\.[^/.]+$/, "")}
-                </span>
-                <span className="file-card-extension">
-                  {file.includes(".") ? `.${file.split(".").pop()}` : ""}
-                </span>
-                {/* Silme butonu */}
-                <button
-                  className="file-card-delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`"${file}" silinsin mi?`)) {
-                      deleteFile(file);
-                    }
-                  }}
-                  title="Dosyayı sil"
-                >
-                  🗑
-                </button>
-              </div>
-            ))}
-          </div>
-        </aside>
+        <Sidebar
+          path={path}
+          setPath={setPath}
+          files={files}
+          selectedFile={selectedFile}
+          getFiles={getFiles}
+          openFile={openFile}
+          createFile={createFile}
+          deleteFile={deleteFile}
+          createDirectory={createDirectory}
+          deleteDirectory={deleteDirectory}
+          showNewFileInput={showNewFileInput}
+          setShowNewFileInput={setShowNewFileInput}
+          newFileName={newFileName}
+          setNewFileName={setNewFileName}
+        />
       )}
       {/* Editor Area */}
       <div
