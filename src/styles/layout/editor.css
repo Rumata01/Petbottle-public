@@ -1,0 +1,67 @@
+.editor-wrapper {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  background-color: var(--bg-app);
+
+  cursor: text;
+
+  scrollbar-gutter: stable;
+}
+
+.editor-content {
+  width: 100%;
+  max-width: var(--max-content-width);
+
+  padding-inline: clamp(var(--space-4), 5vw, var(--space-8));
+  padding-block: var(--space-8) var(--space-xl);
+
+  container-type: inline-size;
+  container-name: editor;
+
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}
+
+.document-title {
+  background: transparent;
+  border: none;
+  outline: none;
+  width: 100%;
+  resize: none;
+
+  font-family: var(--font-display, var(--font-main));
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-main);
+
+  margin-bottom: var(--space-6);
+  padding: 0;
+}
+
+.document-title::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+::selection {
+  background-color: var(--brand-light);
+  color: var(--brand-dark);
+}
+
+body.focus-mode .sidebar {
+  opacity: 0.1;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+
+body.focus-mode .editor-content {
+  max-width: 800px;
+}

@@ -14,12 +14,16 @@
 
 import React, { useState, useRef, useEffect, memo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import { desktopDir } from "@tauri-apps/api/path";
 import DOMPurify from "dompurify";
+import { Type, Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Quote, Code, Minus, MessageSquare, ChevronRight, Menu, Check as CheckIcon, X as XIcon, Info } from "lucide-react";
 
 // ----------------------------------------------------------------------------
-// CSS IMPORTS - Thema Library
+// CSS IMPORTS - PetbottleCss
 // ----------------------------------------------------------------------------
-import "./styles/thema.min.css";
+import "./styles/main.css";
+import "./styles/App.css";
 import { SetupScreen } from "./SetupScreen";
 import ContentEditable, { ContentEditableEvent } from "react-contenteditable";
 
@@ -59,17 +63,17 @@ interface Block {
   isCollapsed?: boolean;
 }
 
-// Command Panel icin blok turleri
 interface BlockTypeOption {
   type: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   depth?: number;
   description?: string;
 }
 
+export type ThemeName = "light" | "dark" | "forest" | "ocean" | "sunset";
+
 // Tema türleri ve bileşenleri Settings modülünden
-import { ThemeName, ThemeSwitcher } from "./Settings";
 import { Sidebar } from "./Sidebar";
 export interface FileNode {
   name: string;
@@ -84,21 +88,21 @@ export interface FileNode {
 
 const BLOCK_TYPES: BlockTypeOption[] = [
   // Temel
-  { type: "paragraph", label: "Paragraf", icon: "¶", description: "Düz metin" },
-  { type: "heading", label: "Başlık 1", icon: "H1", depth: 1, description: "Büyük başlık" },
-  { type: "heading", label: "Başlık 2", icon: "H2", depth: 2, description: "Orta başlık" },
-  { type: "heading", label: "Başlık 3", icon: "H3", depth: 3, description: "Küçük başlık" },
+  { type: "paragraph", label: "Paragraf", icon: <Type size={16} />, description: "Düz metin" },
+  { type: "heading", label: "Başlık 1", icon: <Heading1 size={16} />, depth: 1, description: "Büyük başlık" },
+  { type: "heading", label: "Başlık 2", icon: <Heading2 size={16} />, depth: 2, description: "Orta başlık" },
+  { type: "heading", label: "Başlık 3", icon: <Heading3 size={16} />, depth: 3, description: "Küçük başlık" },
   // Listeler
-  { type: "bullet-list", label: "Liste", icon: "•", description: "Madde işaretli liste" },
-  { type: "numbered-list", label: "Numaralı Liste", icon: "1.", description: "Sıralı liste" },
-  { type: "checkbox", label: "Yapılacak", icon: "☐", description: "Kontrol listesi" },
+  { type: "bullet-list", label: "Liste", icon: <List size={16} />, description: "Madde işaretli liste" },
+  { type: "numbered-list", label: "Numaralı Liste", icon: <ListOrdered size={16} />, description: "Sıralı liste" },
+  { type: "checkbox", label: "Yapılacak", icon: <CheckSquare size={16} />, description: "Kontrol listesi" },
   // Icerik
-  { type: "quote", label: "Alıntı", icon: "❝", description: "Alıntı bloğu" },
-  { type: "code", label: "Kod Bloğu", icon: "</>", description: "Kod parçacığı" },
-  { type: "divider", label: "Ayraç", icon: "—", description: "Yatay çizgi" },
+  { type: "quote", label: "Alıntı", icon: <Quote size={16} />, description: "Alıntı bloğu" },
+  { type: "code", label: "Kod Bloğu", icon: <Code size={16} />, description: "Kod parçacığı" },
+  { type: "divider", label: "Ayraç", icon: <Minus size={16} />, description: "Yatay çizgi" },
   // Ozel
-  { type: "callout", label: "Bilgi Kutusu", icon: "💡", description: "Vurgulu bilgi" },
-  { type: "toggle", label: "Açılır Blok", icon: "▶", description: "Genişletilebilir içerik" },
+  { type: "callout", label: "Bilgi Kutusu", icon: <MessageSquare size={16} />, description: "Vurgulu bilgi" },
+  { type: "toggle", label: "Açılır Blok", icon: <ChevronRight size={16} />, description: "Genişletilebilir içerik" },
 ];
 
 // Theme list has been moved to Settings component
@@ -349,20 +353,20 @@ const BlockContentInner = ({
     e.preventDefault();
     const htmlText = e.clipboardData.getData("text/html");
     const plainText = e.clipboardData.getData("text/plain");
-    
+
     let textToInsert = "";
     if (htmlText) {
-       textToInsert = DOMPurify.sanitize(htmlText, {
-         ALLOWED_TAGS: ["b", "i", "em", "strong", "a", "br", "code"],
-         ALLOWED_ATTR: ["href", "target", "rel"],
-         ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):)/i,
-         FORBID_ATTR: ["onclick", "onerror", "onload"],
-       });
+      textToInsert = DOMPurify.sanitize(htmlText, {
+        ALLOWED_TAGS: ["b", "i", "em", "strong", "a", "br", "code"],
+        ALLOWED_ATTR: ["href", "target", "rel"],
+        ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):)/i,
+        FORBID_ATTR: ["onclick", "onerror", "onload"],
+      });
     } else {
-       // Escape basic plain text formatting to avoid implicit tags
-       textToInsert = plainText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      // Escape basic plain text formatting to avoid implicit tags
+      textToInsert = plainText.replace(/</g, "&lt;").replace(/>/g, "&gt;");
     }
-    
+
     document.execCommand("insertHTML", false, textToInsert);
   };
 
@@ -590,7 +594,7 @@ const BlockContentInner = ({
       case "callout":
         return (
           <div className="callout">
-            <span className="callout-icon">💡</span>
+            <MessageSquare size={16} className="callout-icon" style={{ marginTop: "2px" }} />
             {contentElement}
           </div>
         );
@@ -599,11 +603,11 @@ const BlockContentInner = ({
         return (
           <div className={`toggle ${block.isCollapsed === false ? "open" : ""}`}>
             <div className="toggle-header">
-              <span className="toggle-icon" onClick={(e) => {
+              <ChevronRight size={16} className="toggle-icon" onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 onToggleCollapse?.();
-              }}>▶</span>
+              }} />
               {contentElement}
             </div>
           </div>
@@ -974,6 +978,7 @@ function App() {
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [shouldMoveCursorToEnd, setShouldMoveCursorToEnd] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   // Debounce ref for history
   const historyDebounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -999,6 +1004,7 @@ function App() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [toastType, setToastType] = useState<"success" | "error" | "info">("success");
+  const [isToastClosing, setIsToastClosing] = useState(false);
 
   // Yeni dosya girisi icin state
   const [newFileName, setNewFileName] = useState("");
@@ -1158,6 +1164,25 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
     }
   }
 
+  // Yeni Çalışma Alanı Seçimi (Native Dialog)
+  const handleChangeWorkspace = async () => {
+    try {
+      const startPath = await desktopDir();
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        defaultPath: startPath,
+        title: "Çalışma Alanı Seç"
+      });
+
+      if (selected && typeof selected === "string") {
+        await handleSetupComplete(selected);
+      }
+    } catch (error) {
+      console.error("Çalışma alanı seçimi iptal edildi veya hata oluştu:", error);
+    }
+  };
+
   // Dosya ac
   async function openFile(file: string) {
     try {
@@ -1289,8 +1314,16 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
   const showToastMessage = (message: string, type: "success" | "error" | "info" = "success") => {
     setToastMessage(message);
     setToastType(type);
+    setIsToastClosing(false);
     setShowToast(true);
-    setTimeout(() => setShowToast(false), 3000);
+
+    setTimeout(() => {
+      setIsToastClosing(true);
+      setTimeout(() => {
+        setShowToast(false);
+        setIsToastClosing(false);
+      }, 300); // 300ms for slideOutRight animation
+    }, 3000); // Display for 3 seconds
   };
 
   // ----------------------------------------------------------------------------
@@ -1633,41 +1666,43 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
   }
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${!sidebarOpen ? "sidebar-collapsed" : ""}`} id="main-layout">
 
-      {/* Sidebar Toggle */}
-      <div className="sidebar-toggle-column">
-        <button
-          className="sidebar-toggle-btn"
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          title={sidebarOpen ? "Sidebar kapat" : "Sidebar aç"}
-        >
-          ☰
-        </button>
+      {/* Floating Toggle for Sidebar */}
+      <div className="floating-toggle" style={{ zIndex: 100 }}>
+        {!sidebarOpen && (
+          <button
+            className="btn btn-icon btn-secondary"
+            onClick={() => setSidebarOpen(true)}
+            title="Sidebar aç"
+          >
+            <Menu size={16} />
+          </button>
+        )}
       </div>
 
-      {/* Sidebar */}
-      {sidebarOpen && (
-        <Sidebar
-          path={path}
-          setPath={setPath}
-          files={files}
-          selectedFile={selectedFile}
-          getFiles={getFiles}
-          openFile={openFile}
-          createFile={createFile}
-          deleteFile={deleteFile}
-          createDirectory={createDirectory}
-          deleteDirectory={deleteDirectory}
-          showNewFileInput={showNewFileInput}
-          setShowNewFileInput={setShowNewFileInput}
-          newFileName={newFileName}
-          setNewFileName={setNewFileName}
-        />
-      )}
+      {/* Sidebar - Always rendered but CSS hides it when collapsed */}
+      <Sidebar
+        path={path}
+        files={files}
+        selectedFile={selectedFile}
+        openFile={openFile}
+        createFile={createFile}
+        deleteFile={deleteFile}
+        createDirectory={createDirectory}
+        deleteDirectory={deleteDirectory}
+        showNewFileInput={showNewFileInput}
+        setShowNewFileInput={setShowNewFileInput}
+        newFileName={newFileName}
+        setNewFileName={setNewFileName}
+        onClose={() => setSidebarOpen(false)}
+        onOpenSettings={() => setSettingsModalOpen(true)}
+        onChangeWorkspace={handleChangeWorkspace}
+      />
+
       {/* Editor Area */}
-      <div
-        className="editor-main"
+      <main
+        className="main-content"
         onDoubleClick={async (e) => {
           if (e.target === e.currentTarget && blocks.length > 0) {
             const lastBlock = blocks[blocks.length - 1];
@@ -1750,18 +1785,43 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         ) : (
           <div className="editor-empty-state" />
         )}
+      </main>
+
+      {/* Settings Modal */}
+      <div className={`settings-overlay ${settingsModalOpen ? "open" : ""}`} onClick={() => setSettingsModalOpen(false)}>
+        <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", borderBottom: "1px solid var(--border-subtle)", paddingBottom: "12px" }}>
+            <h2 style={{ margin: 0, fontSize: "1.25rem" }}>Account Settings</h2>
+            <button className="btn btn-icon btn-ghost" onClick={() => setSettingsModalOpen(false)} title="Close">
+              <XIcon size={16} />
+            </button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div>
+              <label style={{ fontSize: "12px", fontWeight: 500, color: "var(--text-muted)", display: "block", marginBottom: "4px" }}>Theme Profile</label>
+              <select className="form-input" value={theme} onChange={(e) => changeTheme(e.target.value as ThemeName)}>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="forest">Forest</option>
+                <option value="ocean">Ocean</option>
+                <option value="sunset">Sunset</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Theme Switcher */}
-      <ThemeSwitcher currentTheme={theme} onThemeChange={changeTheme} />
-
       {/* Toast */}
-      {showToast && (
-        <div className={`toast toast-${toastType}`}>
-          <div className="toast-icon">
-            {toastType === "success" ? "✓" : toastType === "error" ? "✕" : "ℹ"}
+      {(showToast || isToastClosing) && (
+        <div className="toast-container">
+          <div className={`toast toast-${toastType} ${isToastClosing ? "closing" : ""}`}>
+            <div className="toast-icon">
+              {toastType === "success" ? <CheckIcon size={16} /> : toastType === "error" ? <XIcon size={16} /> : <Info size={16} />}
+            </div>
+            <div className="toast-content">
+              <div className="toast-message">{toastMessage}</div>
+            </div>
           </div>
-          <div className="toast-message">{toastMessage}</div>
         </div>
       )}
     </div>

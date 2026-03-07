@@ -1,0 +1,127 @@
+.command-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.command-panel {
+  width: 100%;
+  max-width: 600px;
+  background-color: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+
+  overflow: hidden;
+
+  will-change: clip-path, transform, opacity;
+
+  animation: circleReveal 0.35s cubic-bezier(0.2, 1, 0.2, 1) forwards;
+
+  transform-origin: var(--origin-x, 50%) var(--origin-y, 50%);
+  animation: dynamicCircleReveal 0.35s cubic-bezier(0.2, 1, 0.2, 1) forwards;
+}
+
+.command-input-wrapper {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.command-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: var(--text-lg);
+  color: var(--text-main);
+  font-family: var(--font-main);
+}
+
+.command-input::placeholder {
+  color: var(--text-muted);
+}
+
+.command-list {
+  max-height: 350px;
+  overflow-y: auto;
+  padding: var(--space-2);
+  scrollbar-width: thin;
+}
+
+.command-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+
+.command-item[aria-select="true"],
+.command-item:hover {
+  background-color: var(--brand-light);
+  color: var(--brand-dark);
+}
+
+.command-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background-color: var(--bg-app);
+  border-radius: 4px;
+  color: inherit;
+}
+
+@keyframes circleReveal {
+  0% {
+    clip-path: circle(0% at 50% 50%);
+    transform: scale(0.9);
+    opacity: 0;
+  }
+
+  100% {
+    clip-path: circle(150% at 50% 50%);
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dynamicCircleReveal {
+  0% {
+    clip-path: circle(Opx at var(--origin-x, 50%) var(--origin-y, 50%));
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  100% {
+    clip-path: circle(150% at var(--origin-x, 50%) var(--origin-y 50%));
+    transform: scale(1);
+    opacity: 1;
+  }
+}

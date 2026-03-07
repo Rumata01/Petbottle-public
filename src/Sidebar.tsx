@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { FileNode } from "./App";
+import { File, Folder, FolderOpen, Trash2, FilePlus, FolderPlus, Check, X, FileText, Settings, PanelLeftClose } from "lucide-react";
 
 interface SidebarProps {
   path: string;
-  setPath: (path: string) => void;
   files: FileNode[];
   selectedFile: string | null;
-  getFiles: () => void;
   openFile: (file: string) => void;
   createFile: (dirPath: string, filename: string) => void;
   deleteFile: (dirPath: string, filename: string, fullPath: string) => void;
@@ -16,6 +15,9 @@ interface SidebarProps {
   setShowNewFileInput: (show: boolean) => void;
   newFileName: string;
   setNewFileName: (name: string) => void;
+  onClose: () => void;
+  onOpenSettings: () => void;
+  onChangeWorkspace: () => void;
 }
 
 const FileTreeNode = ({
@@ -47,23 +49,23 @@ const FileTreeNode = ({
   if (!node.is_dir) {
     return (
       <div
-        className={`file-card ${isSelected ? "active" : ""}`}
+        className={`file-item ${isSelected ? "active" : ""}`}
         style={{ paddingLeft: `${paddingLeft}px` }}
         onClick={() => openFile(node.path)}
       >
-        <span className="file-card-icon">📄</span>
-        <span className="file-card-name">
+        <File size={14} style={{ marginRight: "8px", color: "var(--text-muted)" }} />
+        <span className="file-card-name" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {node.name.replace(/\.[^/.]+$/, "")}
         </span>
-        <span className="file-card-extension">
+        <span className="file-card-extension" style={{ fontSize: "11px", color: "var(--text-muted)", marginRight: "8px" }}>
           {node.name.includes(".") ? `.${node.name.split(".").pop()}` : ""}
         </span>
         <button
-          className="file-card-delete"
+          className="btn btn-icon btn-ghost file-card-delete"
+          style={{ width: "24px", height: "24px", padding: 0 }}
           onClick={(e) => {
             e.stopPropagation();
             if (window.confirm(`"${node.name}" silinsin mi?`)) {
-              // Path is full absolute path from rust
               const separator = node.path.includes("/") ? "/" : "\\";
               const dirPath = node.path.substring(0, node.path.lastIndexOf(separator));
               deleteFile(dirPath, node.name, node.path);
@@ -71,7 +73,7 @@ const FileTreeNode = ({
           }}
           title="Dosyayı sil"
         >
-          🗑
+          <Trash2 size={12} />
         </button>
       </div>
     );
@@ -80,32 +82,35 @@ const FileTreeNode = ({
   return (
     <div className="folder-node">
       <div
-        className="folder-card"
+        className="file-item folder-item"
         style={{ paddingLeft: `${paddingLeft}px` }}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <span className="folder-card-icon">{isOpen ? "📂" : "📁"}</span>
+        {isOpen ? <FolderOpen size={14} style={{ marginRight: "8px", color: "var(--brand-main)" }} /> : <Folder size={14} style={{ marginRight: "8px", color: "var(--text-muted)" }} />}
         <span className="folder-card-name" style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {node.name}
         </span>
         
-        <div className="folder-card-actions" onClick={(e) => e.stopPropagation()}>
+        <div className="folder-card-actions" onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: "2px" }}>
            <button
-             className="sidebar-btn-xs"
+             className="btn btn-icon btn-ghost sidebar-btn-xs"
+             style={{ width: "24px", height: "24px", padding: 0 }}
              onClick={() => { setIsOpen(true); setShowInputFor("file"); setInputValue(""); }}
              title="Yeni Dosya"
            >
-             +📄
+             <FilePlus size={12} />
            </button>
            <button
-             className="sidebar-btn-xs"
+             className="btn btn-icon btn-ghost sidebar-btn-xs"
+             style={{ width: "24px", height: "24px", padding: 0 }}
              onClick={() => { setIsOpen(true); setShowInputFor("dir"); setInputValue(""); }}
              title="Yeni Klasör"
            >
-             +📁
+             <FolderPlus size={12} />
            </button>
            <button
-             className="file-card-delete"
+             className="btn btn-icon btn-ghost file-card-delete"
+             style={{ width: "24px", height: "24px", padding: 0 }}
              onClick={() => {
                if (window.confirm(`"${node.name}" klasörü silinsin mi?`)) {
                  const separator = node.path.includes("/") ? "/" : "\\";
@@ -115,20 +120,20 @@ const FileTreeNode = ({
              }}
              title="Klasörü sil"
            >
-             🗑
+             <Trash2 size={12} />
            </button>
         </div>
       </div>
 
       {isOpen && showInputFor && (
-        <div className="new-file-input-container" style={{ paddingLeft: `${paddingLeft + 12}px`, marginTop: "4px", marginBottom: "4px" }}>
+        <div className="new-file-input-container" style={{ paddingLeft: `${paddingLeft + 12}px`, marginTop: "4px", marginBottom: "4px", display: "flex", gap: "4px" }}>
           <input
-            className="search-input"
+            className="form-input"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             placeholder={showInputFor === "file" ? "Dosya adı..." : "Klasör adı..."}
             autoFocus
-            style={{ width: "120px", padding: "4px 8px", fontSize: "12px" }}
+            style={{ width: "120px", padding: "4px 8px", fontSize: "12px", height: "24px" }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && inputValue.trim()) {
                 if (showInputFor === "file") createFile(node.path, inputValue.trim());
@@ -142,8 +147,8 @@ const FileTreeNode = ({
             }}
           />
           <button
-            className="sidebar-btn sidebar-btn-small"
-            style={{ padding: "4px 6px" }}
+            className="btn btn-icon btn-primary"
+            style={{ width: "24px", height: "24px", padding: 0 }}
             onClick={() => {
               if (inputValue.trim()) {
                 if (showInputFor === "file") createFile(node.path, inputValue.trim());
@@ -153,17 +158,17 @@ const FileTreeNode = ({
               }
             }}
           >
-            ✓
+            <Check size={12} />
           </button>
           <button
-            className="sidebar-btn sidebar-btn-small sidebar-btn-cancel"
-            style={{ padding: "4px 6px" }}
+            className="btn btn-icon btn-danger"
+            style={{ width: "24px", height: "24px", padding: 0 }}
             onClick={() => {
               setShowInputFor(null);
               setInputValue("");
             }}
           >
-            ✗
+            <X size={12} />
           </button>
         </div>
       )}
@@ -192,10 +197,8 @@ const FileTreeNode = ({
 
 export const Sidebar = ({
   path,
-  setPath,
   files,
   selectedFile,
-  getFiles,
   openFile,
   createFile,
   deleteFile,
@@ -205,37 +208,36 @@ export const Sidebar = ({
   setShowNewFileInput,
   newFileName,
   setNewFileName,
+  onClose,
+  onOpenSettings,
+  onChangeWorkspace,
 }: SidebarProps) => {
   return (
-    <aside className="app-sidebar">
-      {/* Header - Path ve Buton */}
-      <div className="app-sidebar-header">
-        <div className="search-container">
-          <input
-            className="search-input"
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-            placeholder="/home/kullanici/Notlarim/"
-          />
+    <aside className="sidebar" id="sidebar">
+      {/* Header - Standard Petbottle Header */}
+      <div className="sidebar-header">
+        <span>Petbottle Workspace</span>
+        <div className="sidebar-actions">
+          <button className="btn btn-icon btn-ghost" onClick={onClose} title="Kapat">
+            <PanelLeftClose size={16} />
+          </button>
         </div>
-        <button className="sidebar-btn" onClick={getFiles}>
-          <span className="sidebar-btn-icon">📁</span>
-          Çalışma Alanını Aç
-        </button>
+      </div>
 
+      {/* Workspace Actions (New File/Folder Only) */}
+      <div style={{ padding: "12px", borderBottom: "1px solid var(--border-subtle)", display: "flex", flexDirection: "column", gap: "8px" }}>
         {files.length > 0 && (
           <div className="sidebar-file-actions" style={{ display: "flex", gap: "4px", width: "100%" }}>
             {showNewFileInput ? (
-              <div className="new-file-input-container">
+              <div className="new-file-input-container" style={{ display: "flex", gap: "4px" }}>
                 <input
-                  className="search-input"
+                  className="form-input"
+                  style={{ fontSize: "12px", height: "26px", padding: "4px 8px" }}
                   value={newFileName}
                   onChange={(e) => setNewFileName(e.target.value)}
                   placeholder="Dosya veya Klasör..."
                   autoFocus
                   onKeyDown={(e) => {
-                     // Default enter creates file at root for backwards compability and quick workflow.
-                     // It is better to use the specific folder action buttons.
                     if (e.key === "Enter" && newFileName.trim()) {
                       createFile(path, newFileName);
                       setNewFileName("");
@@ -247,7 +249,8 @@ export const Sidebar = ({
                   }}
                 />
                 <button
-                  className="sidebar-btn sidebar-btn-small"
+                  className="btn btn-icon btn-secondary"
+                  style={{ width: "26px", height: "26px", padding: 0 }}
                   title="Dosya Oluştur"
                   onClick={() => {
                     if (newFileName.trim()) {
@@ -257,10 +260,11 @@ export const Sidebar = ({
                     }
                   }}
                 >
-                  📝
+                  <FileText size={14} />
                 </button>
                  <button
-                  className="sidebar-btn sidebar-btn-small"
+                  className="btn btn-icon btn-secondary"
+                  style={{ width: "26px", height: "26px", padding: 0 }}
                   title="Klasör Oluştur"
                   onClick={() => {
                     if (newFileName.trim()) {
@@ -270,25 +274,27 @@ export const Sidebar = ({
                     }
                   }}
                 >
-                  📁
+                  <FolderPlus size={14} />
                 </button>
                 <button
-                  className="sidebar-btn sidebar-btn-small sidebar-btn-cancel"
+                  className="btn btn-icon btn-danger"
+                  style={{ width: "26px", height: "26px", padding: 0 }}
                   onClick={() => {
                     setNewFileName("");
                     setShowNewFileInput(false);
                   }}
                 >
-                  ✗
+                  <X size={14} />
                 </button>
               </div>
             ) : (
               <button
-                className="sidebar-btn sidebar-btn-secondary"
-                style={{ flex: 1 }}
+                className="btn btn-secondary"
+                style={{ flex: 1, fontSize: "12px", padding: "6px" }}
                 onClick={() => setShowNewFileInput(true)}
               >
-                + Yeni
+                <FilePlus size={14} style={{ marginRight: "6px" }} />
+                + Yeni Öge
               </button>
             )}
           </div>
@@ -296,7 +302,7 @@ export const Sidebar = ({
       </div>
 
       {/* File list (Root level nodes) */}
-      <div className="app-sidebar-content">
+      <div className="file-list">
         {files.map((node, i) => (
           <FileTreeNode
             key={i}
@@ -310,6 +316,18 @@ export const Sidebar = ({
             deleteDirectory={deleteDirectory}
           />
         ))}
+      </div>
+
+      {/* Sidebar Footer - Settings & Workspace */}
+      <div className="sidebar-footer" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <button className="btn btn-secondary" style={{ width: "100%", justifyContent: "flex-start", padding: "8px 12px" }} onClick={onChangeWorkspace} title="Çalışma Alanı Değiştir">
+          <FolderOpen size={14} style={{ marginRight: "6px" }} />
+          Çalışma Alanı Seç
+        </button>
+        <button className="btn btn-secondary" style={{ width: "100%", justifyContent: "flex-start", padding: "8px 12px" }} onClick={onOpenSettings} title="Ayarlar">
+          <Settings size={14} style={{ marginRight: "6px" }} />
+          Ayarlar
+        </button>
       </div>
     </aside>
   );

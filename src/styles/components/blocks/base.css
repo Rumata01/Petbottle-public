@@ -1,0 +1,61 @@
+.editor-block {
+  display: grid;
+
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+
+  margin-bottom: var(--space-1);
+  position: relative;
+
+  transition: background-color var(--transition-fast);
+  border-radius: var(--radius-sm);
+}
+
+.block-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+
+  margin-top: 2px;
+
+  color: var(--text-muted);
+  opacity: 0;
+  cursor: grab;
+  border-radius: var(--radius-sm);
+  user-select: none;
+  transition:
+    opacity 0.2s,
+    background-color 0.2s;
+}
+
+.block-handle:active {
+  cursor: grabbing;
+}
+
+.editor-block:hover .block-handle {
+  opacity: 1;
+}
+
+.block-handle:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.block-content {
+  min-width: 0;
+  word-wrap: break-word;
+  padding-top: 3px;
+}
+
+.editor-block:focus-within {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+@media (prefers-color-scheme: dark) {
+  .editor-block:focus-within {
+    background-color: rgba(255, 255, 255, 0.03);
+  }
+}
