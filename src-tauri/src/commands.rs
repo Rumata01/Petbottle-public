@@ -679,6 +679,34 @@ pub fn delete_file(directory: String, filename: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+pub fn rename_file(old_path: String, new_name: String) -> Result<(), String> {
+    let old = PathBuf::from(&old_path)
+        .canonicalize()
+        .map_err(|_| "Gecersiz Dizin".to_string())?;
+
+    is_path_allowed(&old)?;
+
+    if !old.is_file() {
+         return Err("Bu bir klasor".to_string());
+    }
+
+    let parent = old.parent().unwrap_or(Path::new(""));
+    let mut new_path = parent.join(&new_name);
+
+    if !new_name.ends_with(".md") && old.extension().map_or(false, |ext| ext == "md") {
+        new_path.set_extension("md");
+    }
+
+    if new_path.exists() {
+        return Err("Bu isimde bir dosya zaten var".to_string());
+    }
+
+    fs::rename(old, new_path).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 // Klasör oluştur
 #[tauri::command]
 pub fn create_directory(directory: String, dirname: String) -> Result<String, String> {

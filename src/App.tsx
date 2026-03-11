@@ -17,7 +17,10 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { desktopDir } from "@tauri-apps/api/path";
 import DOMPurify from "dompurify";
-import { Type, Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Quote, Code, Minus, MessageSquare, ChevronRight, Menu, Check as CheckIcon, X as XIcon, Info } from "lucide-react";
+import { Type, Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Quote, Code, Minus, MessageSquare, ChevronRight, Menu, Check as CheckIcon, X as XIcon, Info, FolderOpen, Settings, Share2 } from "lucide-react";
+
+import { Sidebar } from "./Sidebar";
+import { Paylas } from "./Paylas";
 
 // ----------------------------------------------------------------------------
 // CSS IMPORTS - PetbottleCss
@@ -74,7 +77,6 @@ interface BlockTypeOption {
 export type ThemeName = "light" | "dark" | "forest" | "ocean" | "sunset";
 
 // Tema türleri ve bileşenleri Settings modülünden
-import { Sidebar } from "./Sidebar";
 export interface FileNode {
   name: string;
   path: string;
@@ -963,12 +965,13 @@ const NestedSortableBlock = ({
 // ============================================================================
 
 function App() {
+  const [activeTab, setActiveTab] = useState<'editor' | 'share'>('editor');
   // ----------------------------------------------------------------------------
   // STATE
   // ----------------------------------------------------------------------------
   const [path, setPath] = useState("");
   const [files, setFiles] = useState<FileNode[]>([]);
-  const [selectedFile, setSelectedFile] = useState<string | null>("");
+  const [selectedFile, setSelectedFile] = useState<string | null>(null); // Changed initial state to null
 
   // Document state
   const [docId, setDocId] = useState<string | null>(null);
@@ -1714,6 +1717,12 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
     }
   }, [docId, dropIndicator]);
 
+  // Helper for adding next block with cursor focus
+  const handleAddNextBlock = useCallback(async (currentId: string, exitToParent?: boolean, blockType?: string) => {
+    await addBlock(currentId, exitToParent, blockType);
+    // addBlock already sets focusedBlockId and shouldMoveCursorToEnd
+  }, [addBlock]);
+
   // ============================================================================
   // RENDER - Thema class'lari ile
   // ============================================================================
@@ -1724,7 +1733,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
   }
 
   return (
-    <div className={`app-container ${!sidebarOpen ? "sidebar-collapsed" : ""}`} id="main-layout">
+    <div className={`app-container ${!sidebarOpen ? 'sidebar-collapsed' : ''}`} id="main-layout">
 
       {/* Floating Toggle for Sidebar */}
       <div className="floating-toggle" style={{ zIndex: 100 }}>
@@ -1754,22 +1763,75 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         newFileName={newFileName}
         setNewFileName={setNewFileName}
         onClose={() => setSidebarOpen(false)}
-        onOpenSettings={() => setSettingsModalOpen(true)}
-        onChangeWorkspace={handleChangeWorkspace}
         onConfirmDelete={(message, onConfirm) => setConfirmDialog({ message, onConfirm })}
       />
 
       {/* Editor Area */}
       <main
         className="main-content"
+        style={{ width: '100%' }}
         onDoubleClick={async (e) => {
+          if (activeTab === 'share') return;
           if (e.target === e.currentTarget && blocks.length > 0) {
             const lastBlock = blocks[blocks.length - 1];
-            await addBlock(lastBlock.id);
+            if (lastBlock.content.trim() !== "" || lastBlock.type !== "paragraph") {
+              handleAddNextBlock(lastBlock.id, false, "paragraph");
+              
+              setTimeout(() => {
+                const el = document.getElementById(`block-${blocks[blocks.length - 1].id}`);
+                const contentEditable = el?.querySelector(".block-content") as HTMLElement;
+                if (contentEditable) {
+                  const selection = window.getSelection();
+                  const range = document.createRange();
+                  range.selectNodeContents(contentEditable);
+                  range.collapse(false);
+                  selection?.removeAllRanges();
+                  selection?.addRange(range);
+                  contentEditable.focus();
+                }
+              }, 50);
+            }
           }
         }}
       >
-        {selectedFile && blocks.length > 0 ? (
+        {/* Ayarlar ve Workspace Butonları (PROCESS 1) */}
+        <div style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          padding: "var(--space-3) var(--space-4)",
+          gap: "var(--space-2)",
+          position: "sticky",
+          top: 0,
+          zIndex: 10,
+          backgroundColor: "var(--bg-app)"
+        }}>
+          <button
+            className="btn btn-icon btn-secondary"
+            onClick={handleChangeWorkspace}
+            title="Çalışma Alanı Seç"
+          >
+            <FolderOpen size={16} />
+          </button>
+          <button
+            className={`btn btn-sm ${activeTab === 'share' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ display: "flex", gap: "6px" }}
+            onClick={() => setActiveTab(activeTab === 'editor' ? 'share' : 'editor')}
+          >
+            <Share2 size={16} />
+            Share
+          </button>
+          <button
+            className="btn btn-icon btn-secondary"
+            onClick={() => setSettingsModalOpen(true)}
+            title="Ayarlar"
+          >
+            <Settings size={16} />
+          </button>
+        </div>
+
+        {activeTab === 'share' ? (
+          <Paylas />
+        ) : selectedFile && blocks.length > 0 ? (
           <div className="editor-wrapper">
 
             <DndContext

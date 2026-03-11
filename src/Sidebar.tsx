@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FileNode } from "./App";
-import { File, Folder, FolderOpen, Trash2, FilePlus, FolderPlus, Check, X, FileText, Settings, PanelLeftClose } from "lucide-react";
+import { File, Folder, FolderOpen, Trash2, FilePlus, FolderPlus, Check, X, FileText, PanelLeftClose } from "lucide-react";
 
 interface SidebarProps {
   path: string;
@@ -16,8 +16,6 @@ interface SidebarProps {
   newFileName: string;
   setNewFileName: (name: string) => void;
   onClose: () => void;
-  onOpenSettings: () => void;
-  onChangeWorkspace: () => void;
   onConfirmDelete: (message: string, onConfirm: () => void) => void;
 }
 
@@ -209,8 +207,6 @@ export const Sidebar = ({
   newFileName,
   setNewFileName,
   onClose,
-  onOpenSettings,
-  onChangeWorkspace,
   onConfirmDelete,
 }: SidebarProps) => {
   return (
@@ -318,18 +314,6 @@ export const Sidebar = ({
             onConfirmDelete={onConfirmDelete}
           />
         ))}
-      </div>
-
-      {/* Sidebar Footer - Settings & Workspace */}
-      <div className="sidebar-footer" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        <button className="btn btn-secondary" style={{ width: "100%", justifyContent: "flex-start", padding: "8px 12px" }} onClick={onChangeWorkspace} title="Çalışma Alanı Değiştir">
-          <FolderOpen size={14} style={{ marginRight: "6px" }} />
-          Çalışma Alanı Seç
-        </button>
-        <button className="btn btn-secondary" style={{ width: "100%", justifyContent: "flex-start", padding: "8px 12px" }} onClick={onOpenSettings} title="Ayarlar">
-          <Settings size={14} style={{ marginRight: "6px" }} />
-          Ayarlar
-        </button>
       </div>
     </aside>
   );
