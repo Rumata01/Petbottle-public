@@ -1006,6 +1006,12 @@ function App() {
   const [toastType, setToastType] = useState<"success" | "error" | "info">("success");
   const [isToastClosing, setIsToastClosing] = useState(false);
 
+  // Confirm dialog state (P5: window.confirm yerine)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+
   // Yeni dosya girisi icin state
   const [newFileName, setNewFileName] = useState("");
   const [showNewFileInput, setShowNewFileInput] = useState(false);
@@ -1164,7 +1170,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
     }
   }
 
-  // Yeni Çalışma Alanı Seçimi (Native Dialog)
+  // Yeni Çalışma Alanı Seçimi (Native Dialog) — P4: hata toast'u eklendi
   const handleChangeWorkspace = async () => {
     try {
       const startPath = await desktopDir();
@@ -1179,7 +1185,8 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         await handleSetupComplete(selected);
       }
     } catch (error) {
-      console.error("Çalışma alanı seçimi iptal edildi veya hata oluştu:", error);
+      console.error("Çalışma alanı seçimi hatası:", error);
+      showToastMessage("Çalışma alanı seçilemedi: " + error, "error");
     }
   };
 
@@ -1213,7 +1220,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
     }
   }
 
-  // Yeni dosya olustur (performansli)
+  // Yeni dosya olustur (P6: optimistic update)
   const createFile = useCallback(async (dirPath: string, filename: string) => {
     if (!dirPath || !filename.trim()) {
       showToastMessage("Dosya adı boş olamaz", "error");
@@ -1226,14 +1233,25 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         filename: filename.trim(),
       });
 
-      getFiles(); // Ağaç yapısını tekrar çek
-      showToastMessage(`"${newFileName}" oluşturuldu`, "success");
-
-      // Yeni dosyayi ac
-      // Path tam olarak birleştirilecek. FileNode'lardaki path formatına göre açıyoruz.
       const sep = dirPath.endsWith("/") || dirPath.endsWith("\\") ? "" : "/";
       const fullPath = `${dirPath}${sep}${newFileName}`;
+
+      // P6: Anında ağaca ekle
+      const newNode: FileNode = { name: newFileName, path: fullPath, is_dir: false };
+      setFiles(prev => {
+        const addToTree = (nodes: FileNode[]): FileNode[] =>
+          nodes.map(n => {
+            if (n.is_dir && n.path === dirPath)
+              return { ...n, children: [...(n.children || []), newNode] };
+            if (n.children) return { ...n, children: addToTree(n.children) };
+            return n;
+          });
+        return dirPath === path ? [...prev, newNode] : addToTree(prev);
+      });
+
+      showToastMessage(`"${newFileName}" oluşturuldu`, "success");
       await openFile(fullPath);
+      getFiles(); // arka planda sync
     } catch (error) {
       console.error("Dosya olusturulamadi:", error);
       showToastMessage("Dosya oluşturulamadı: " + error, "error");
@@ -1271,7 +1289,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
     }
   }, [selectedFile, docId]);
 
-  // Yeni klasör oluştur
+  // Yeni klasör oluştur (P6: optimistic update)
   const createDirectory = useCallback(async (dirPath: string, dirname: string) => {
     if (!dirPath || !dirname.trim()) {
       showToastMessage("Klasör adı boş olamaz", "error");
@@ -1284,13 +1302,29 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         dirname: dirname.trim(),
       });
 
-      getFiles();
+      const sep = dirPath.endsWith("/") || dirPath.endsWith("\\") ? "" : "/";
+      const fullPath = `${dirPath}${sep}${newDirName}`;
+
+      // P6: Anında ağaca ekle
+      const newNode: FileNode = { name: newDirName, path: fullPath, is_dir: true, children: [] };
+      setFiles(prev => {
+        const addToTree = (nodes: FileNode[]): FileNode[] =>
+          nodes.map(n => {
+            if (n.is_dir && n.path === dirPath)
+              return { ...n, children: [newNode, ...(n.children || [])] };
+            if (n.children) return { ...n, children: addToTree(n.children) };
+            return n;
+          });
+        return dirPath === path ? [newNode, ...prev] : addToTree(prev);
+      });
+
       showToastMessage(`Klasör "${newDirName}" oluşturuldu`, "success");
+      getFiles(); // arka planda sync
     } catch (error) {
       console.error("Klasör olusturulamadi:", error);
       showToastMessage("Klasör oluşturulamadı: " + error, "error");
     }
-  }, []);
+  }, [path]);
 
   // Klasör sil
   const deleteDirectory = useCallback(async (dirPath: string, dirname: string) => {
@@ -1375,6 +1409,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
     setShouldMoveCursorToEnd(true);
 
     try {
+      // P3: Backend sadece yeni bloğu döndürüyor, get_blocks çağrısı kaldırıldı
       const newBlock = await invoke("add_block", {
         docId,
         afterId: currentId,
@@ -1382,8 +1417,25 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         blockType: blockType || null
       }) as Block;
 
-      const updatedBlocks = await invoke("get_blocks", { docId }) as Block[];
-      setBlocks(updatedBlocks);
+      // Optimistic: bloğu hemen ekle
+      setBlocks(prev => {
+        const addAfter = (arr: Block[]): Block[] => {
+          const result: Block[] = [];
+          for (const b of arr) {
+            result.push(b);
+            if (b.id === currentId) result.push(newBlock);
+            else if (b.children) result[result.length - 1] = { ...b, children: addAfter(b.children) };
+          }
+          return result;
+        };
+        // exitToParent ise düz listeye ekle, yoksa recursive
+        if (exitToParent) {
+          const flat = [...prev];
+          const idx = flat.findIndex(b => b.id === currentId);
+          if (idx !== -1) { flat.splice(idx + 1, 0, newBlock); return flat; }
+        }
+        return addAfter(prev);
+      });
       setFocusedBlockId(newBlock.id);
     } catch (error) {
       console.error("Blok eklenemedi:", error);
@@ -1408,8 +1460,14 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
     try {
       const prevBlockId = await invoke("delete_block", { docId, blockId }) as string | null;
 
-      const updatedBlocks = await invoke("get_blocks", { docId }) as Block[];
-      setBlocks(updatedBlocks);
+      // P3: Optimistic update — get_blocks kaldırıldı
+      setBlocks(prev => {
+        const remove = (arr: Block[]): Block[] =>
+          arr.filter(b => b.id !== blockId).map(b =>
+            b.children ? { ...b, children: remove(b.children) } : b
+          );
+        return remove(prev);
+      });
 
       if (prevBlockId) {
         setFocusedBlockId(prevBlockId);
@@ -1698,6 +1756,7 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         onClose={() => setSidebarOpen(false)}
         onOpenSettings={() => setSettingsModalOpen(true)}
         onChangeWorkspace={handleChangeWorkspace}
+        onConfirmDelete={(message, onConfirm) => setConfirmDialog({ message, onConfirm })}
       />
 
       {/* Editor Area */}
@@ -1811,15 +1870,52 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         </div>
       </div>
 
-      {/* Toast */}
+      {/* Toast — Sağ alt küçük bildirim */}
       {(showToast || isToastClosing) && (
         <div className="toast-container">
           <div className={`toast toast-${toastType} ${isToastClosing ? "closing" : ""}`}>
             <div className="toast-icon">
-              {toastType === "success" ? <CheckIcon size={16} /> : toastType === "error" ? <XIcon size={16} /> : <Info size={16} />}
+              {toastType === "success" ? <CheckIcon size={14} /> : toastType === "error" ? <XIcon size={14} /> : <Info size={14} />}
             </div>
             <div className="toast-content">
               <div className="toast-message">{toastMessage}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Dialog — P5: Ekran ortasında onay modalı */}
+      {confirmDialog && (
+        <div
+          style={{
+            position: "fixed", inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 9998,
+          }}
+          onClick={() => setConfirmDialog(null)}
+        >
+          <div
+            style={{
+              background: "var(--bg-panel)",
+              border: "1px solid var(--border-subtle)",
+              borderRadius: "var(--radius-lg)",
+              padding: "24px",
+              maxWidth: "360px",
+              width: "90%",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm, 14px)", color: "var(--text-main)", lineHeight: 1.5 }}>
+              {confirmDialog.message}
+            </p>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+              <button className="btn btn-ghost" onClick={() => setConfirmDialog(null)}>İptal</button>
+              <button
+                className="btn btn-danger"
+                onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
+              >Sil</button>
             </div>
           </div>
         </div>

@@ -18,6 +18,7 @@ interface SidebarProps {
   onClose: () => void;
   onOpenSettings: () => void;
   onChangeWorkspace: () => void;
+  onConfirmDelete: (message: string, onConfirm: () => void) => void;
 }
 
 const FileTreeNode = ({
@@ -29,6 +30,7 @@ const FileTreeNode = ({
   deleteFile,
   createDirectory,
   deleteDirectory,
+  onConfirmDelete,
 }: {
   node: FileNode;
   level: number;
@@ -38,6 +40,7 @@ const FileTreeNode = ({
   deleteFile: (dirPath: string, filename: string, fullPath: string) => void;
   createDirectory: (dirPath: string, dirname: string) => void;
   deleteDirectory: (dirPath: string, dirname: string) => void;
+  onConfirmDelete: (message: string, onConfirm: () => void) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [showInputFor, setShowInputFor] = useState<"file" | "dir" | null>(null);
@@ -60,16 +63,14 @@ const FileTreeNode = ({
         <span className="file-card-extension" style={{ fontSize: "11px", color: "var(--text-muted)", marginRight: "8px" }}>
           {node.name.includes(".") ? `.${node.name.split(".").pop()}` : ""}
         </span>
-        <button
+          <button
           className="btn btn-icon btn-ghost file-card-delete"
           style={{ width: "24px", height: "24px", padding: 0 }}
           onClick={(e) => {
             e.stopPropagation();
-            if (window.confirm(`"${node.name}" silinsin mi?`)) {
-              const separator = node.path.includes("/") ? "/" : "\\";
-              const dirPath = node.path.substring(0, node.path.lastIndexOf(separator));
-              deleteFile(dirPath, node.name, node.path);
-            }
+            const separator = node.path.includes("/") ? "/" : "\\";
+            const dirPath = node.path.substring(0, node.path.lastIndexOf(separator));
+            onConfirmDelete(`"${node.name}" silinsin mi?`, () => deleteFile(dirPath, node.name, node.path));
           }}
           title="Dosyayı sil"
         >
@@ -112,11 +113,9 @@ const FileTreeNode = ({
              className="btn btn-icon btn-ghost file-card-delete"
              style={{ width: "24px", height: "24px", padding: 0 }}
              onClick={() => {
-               if (window.confirm(`"${node.name}" klasörü silinsin mi?`)) {
-                 const separator = node.path.includes("/") ? "/" : "\\";
-                 const dirPath = node.path.substring(0, node.path.lastIndexOf(separator));
-                 deleteDirectory(dirPath, node.name);
-               }
+               const separator = node.path.includes("/") ? "/" : "\\";
+               const dirPath = node.path.substring(0, node.path.lastIndexOf(separator));
+               onConfirmDelete(`"${node.name}" klasörü silinsin mi?`, () => deleteDirectory(dirPath, node.name));
              }}
              title="Klasörü sil"
            >
@@ -187,6 +186,7 @@ const FileTreeNode = ({
               deleteFile={deleteFile}
               createDirectory={createDirectory}
               deleteDirectory={deleteDirectory}
+              onConfirmDelete={onConfirmDelete}
             />
           ))}
         </div>
@@ -211,6 +211,7 @@ export const Sidebar = ({
   onClose,
   onOpenSettings,
   onChangeWorkspace,
+  onConfirmDelete,
 }: SidebarProps) => {
   return (
     <aside className="sidebar" id="sidebar">
@@ -314,6 +315,7 @@ export const Sidebar = ({
             deleteFile={deleteFile}
             createDirectory={createDirectory}
             deleteDirectory={deleteDirectory}
+            onConfirmDelete={onConfirmDelete}
           />
         ))}
       </div>

@@ -1,79 +1,91 @@
+/* ============================================================
+   Toast Bildirimleri — Sağ alt köşe, küçük, göze batmaz
+   ============================================================ */
+
 .toast-container {
   position: fixed;
-  bottom: var(--space-6);
-  right: var(--space-6);
+  bottom: 20px;
+  right: 20px;
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-2);
   z-index: 9999;
   pointer-events: none;
+  max-width: 260px;
+  width: auto;
 }
 
 .toast {
-  min-width: 300px;
-  max-width: 400px;
-  padding: var(--space-3) var(--space-4);
+  width: auto;
+  min-width: 160px;
+  max-width: 260px;
+  padding: var(--space-2) var(--space-3);
   background-color: var(--bg-panel);
-  border-left: 4px solid var(--brand-main);
+  border-left: 3px solid var(--brand-main);
   border-radius: var(--radius-md);
-  box-shadow:
-    var(--shadow-md),
-    0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.08);
 
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
+  align-items: center;
+  gap: var(--space-2);
 
   pointer-events: auto;
-  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-.toast.closing {
-  animation: slideOutRight 0.3s cubic-bezier(0.4, 0, 1, 1) forwards;
+  animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+.toast.closing {
+  animation: toastSlideOut 0.25s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/* ── Türe göre renk ── */
+.toast-success {
+  border-left-color: #22c55e;
+}
+.toast-success .toast-icon {
+  color: #22c55e;
+}
+
+.toast-error {
+  border-left-color: var(--danger, #ef4444);
+}
+.toast-error .toast-icon {
+  color: var(--danger, #ef4444);
+}
+
+.toast-info {
+  border-left-color: var(--brand-main);
+}
+.toast-info .toast-icon {
+  color: var(--brand-main);
+}
+
+/* ── İçerik ── */
 .toast-icon {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
-  margin-top: 2px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
 }
 
 .toast-content {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.toast-title {
-  font-weight: 600;
-  font-size: var(--text-sm);
-  color: var(--text-main);
+  min-width: 0;
 }
 
 .toast-message {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+  font-size: var(--text-xs, 12px);
+  color: var(--text-main);
   line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.toast.success {
-  border-left-color: var(--danger);
-}
-.toast.error .toast-icon {
-  color: var(--danger);
-}
-
-.toast.info {
-  border-left-color: var(--brand-main);
-}
-.toast.info .toast-icon {
-  color: var(--brand-main);
-}
-
-@keyframes slideInRight {
+/* ── Animasyonlar ── */
+@keyframes toastSlideIn {
   from {
-    transform: translateX(120%);
+    transform: translateX(110%);
     opacity: 0;
   }
   to {
@@ -82,13 +94,13 @@
   }
 }
 
-@keyframes slideOutRight {
+@keyframes toastSlideOut {
   from {
     transform: translateX(0);
     opacity: 1;
   }
   to {
-    transform: translateX(120%);
+    transform: translateX(110%);
     opacity: 0;
   }
 }

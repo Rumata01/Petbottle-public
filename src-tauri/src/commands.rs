@@ -48,23 +48,25 @@ impl Default for AppState {
     }
 }
 
-// Guvenlik
-// Izin verilen dizini kontrol et
-// Izin verilen dizini kontrol et
+// Guvenlik: Izin verilen dizin kontrolu
 fn is_path_allowed(path: &PathBuf) -> Result<(), String> {
-    let forbidden_prefixes = [
-        "/etc", "/root", "/var", "/usr", "/bin", "/sbin", "/boot", "/dev", "/proc", "/sys", "/lib",
-        "/lib64", "/opt", "/srv", "/run", "/snap",
-    ];
-
-    for prefix in &forbidden_prefixes {
-        if path.starts_with(prefix) {
-            return Err("Erişim Reddedildi: Sistem dizinlerine erişim yasaktır.".to_string());
+    // Linux/macOS: sistem dizinleri yasak
+    #[cfg(not(target_os = "windows"))]
+    {
+        let forbidden_prefixes = [
+            "/etc", "/root", "/var", "/usr", "/bin", "/sbin", "/boot",
+            "/dev", "/proc", "/sys", "/lib", "/lib64", "/opt",
+            "/srv", "/run", "/snap",
+        ];
+        for prefix in &forbidden_prefixes {
+            if path.starts_with(prefix) {
+                return Err("Erişim Reddedildi: Sistem dizinlerine erişim yasaktır.".to_string());
+            }
         }
     }
 
-    // Güvenli dizin kontrolü
-    let safe_roots = [
+    // Kullanıcı klasörlerinden biri altında mı?
+    let safe_roots: Vec<std::path::PathBuf> = [
         dirs::home_dir(),
         dirs::document_dir(),
         dirs::desktop_dir(),
@@ -72,15 +74,45 @@ fn is_path_allowed(path: &PathBuf) -> Result<(), String> {
         dirs::public_dir(),
         dirs::picture_dir(),
         dirs::video_dir(),
-    ];
+    ]
+    .into_iter()
+    .flatten()
+    // Her güvenli kökü de canonicalize et (Windows symlink/OneDrive sorunu için)
+    .filter_map(|p| p.canonicalize().ok())
+    .collect();
 
-    for root in safe_roots.iter().flatten() {
+    for root in &safe_roots {
         if path.starts_with(root) {
             return Ok(());
         }
     }
 
-    // Eğer bunlardan biri değilse hata.
+    // Windows'ta USERPROFILE/HOMEDRIVE fallback
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(user_profile) = std::env::var("USERPROFILE") {
+            let up = PathBuf::from(&user_profile);
+            if path.starts_with(&up) {
+                return Ok(());
+            }
+            if let Ok(canonical_up) = up.canonicalize() {
+                if path.starts_with(&canonical_up) {
+                    return Ok(());
+                }
+            }
+        }
+        // HOMEDRIVE + HOMEPATH
+        if let (Ok(drive), Ok(homepath)) = (
+            std::env::var("HOMEDRIVE"),
+            std::env::var("HOMEPATH"),
+        ) {
+            let home = PathBuf::from(format!("{}{}", drive, homepath));
+            if path.starts_with(&home) {
+                return Ok(());
+            }
+        }
+    }
+
     Err("Erişim izni yok: Sadece kullanıcı klasörleri altında çalışabilirsiniz.".to_string())
 }
 
