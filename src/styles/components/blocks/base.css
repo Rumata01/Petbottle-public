@@ -47,6 +47,8 @@
 .block-content {
   min-width: 0;
   word-wrap: break-word;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
   padding-top: 3px;
 }
 

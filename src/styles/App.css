@@ -77,8 +77,9 @@ body {
 /* Editor Wrapper Adjustment */
 .editor-wrapper {
   padding: 40px;
-  max-width: 800px;
-  margin: 0 auto 0 30px;
+  max-width: 50vw; /* Ekranın ortasına gelince alt satıra geçmesi için */
+  min-width: 300px;
+  margin: 0 auto 0 30px; /* Sidebar'a dayalı olması için soldan 30px boşluk */
   width: 100%;
 }
 
