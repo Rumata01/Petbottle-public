@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Share2, ShieldAlert, CheckCircle2, Copy, Trash2, Smartphone, Monitor } from 'lucide-react';
-import { save } from '@tauri-apps/plugin-dialog';
-import { writeFile } from '@tauri-apps/plugin-fs';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readFile, writeFile } from '@tauri-apps/plugin-fs';
+import * as signalR from '@microsoft/signalr';
 
 // Güvenli formatların Hex (Magic Number) başlangıç değerleri
 const SAFE_FORMATS: Record<string, string> = {
@@ -33,62 +34,61 @@ export const Paylas: React.FC = () => {
   const receivingFileMeta = useRef<{ name: string; size: number; received: number } | null>(null);
   const receivedChunks = useRef<Uint8Array[]>([]);
 
+  // SignalR Bağlantısı referansı
+  const hubConnection = useRef<signalR.HubConnection | null>(null);
+
   useEffect(() => {
     // Component Unmount olduğunda bağlantıyı temizle
     return () => {
       if (peerConnection.current) {
         peerConnection.current.close();
       }
+      if (hubConnection.current) {
+        hubConnection.current.stop();
+      }
     };
   }, []);
 
-  const handleCreateConnection = async () => {
-    setStatus('Bağlanıyor');
-    addLog('Yeni bir P2P bağlantı odası oluşturuluyor...');
-    
-    // WebRTC Ayarları (STUN/TURN) - Petbottle P2P Sunucusuna bağlanılacak
-    const configuration = {
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    };
-
-    peerConnection.current = new RTCPeerConnection(configuration);
-    
-    // Veri Kanalını Oluştur
-    dataChannel.current = peerConnection.current.createDataChannel('fileTransfer');
-    setupDataChannel(dataChannel.current);
-
-    peerConnection.current.onicecandidate = (event) => {
-      if (event.candidate) {
-        // Normal şartlarda bu candidate PetBottle P2PSignalingServer'a (SignalR) gitmeli
-        console.log("Yeni ICE Adayı:", event.candidate);
-      }
-    };
-
-    try {
-      const offer = await peerConnection.current.createOffer();
-      await peerConnection.current.setLocalDescription(offer);
-      
-      // TODO: Offer bilgisini SignalR sunucusuna gönderip bir ID alacağız
-      const mockId = Math.random().toString(36).substring(2, 8).toUpperCase();
-      setConnectionId(mockId);
-      addLog(`Bağlantı oluşturuldu. Oda Kodu: ${mockId}`);
-      setStatus('Bağlandı'); // SignalR Entegrasyonuna kadar mock durum
-      
-    } catch (err) {
-      addLog(`Hata: ${err}`);
-      setStatus('Hata');
+  const connectSignalR = async (): Promise<signalR.HubConnection> => {
+    if (hubConnection.current?.state === signalR.HubConnectionState.Connected) {
+      return hubConnection.current;
     }
-  };
+    
+    // Varsayılan P2P sinyal sunucusu adresi, ortam değişkeninden alınabilir
+    const url = import.meta.env.VITE_SIGNALR_URL || 'http://localhost:5000/signalHub';
+    const conn = new signalR.HubConnectionBuilder()
+      .withUrl(url)
+      .withAutomaticReconnect()
+      .build();
 
-  const handleJoinConnection = async () => {
-    if (!peerId) {
-      addLog('Lütfen geçerli bir kod girin.');
-      return;
-    }
-    setStatus('Bağlanıyor');
-    addLog(`${peerId} kodlu odaya katılındı...`);
-    // TODO: SignalR üzerinden bu odaya katılıp karşı tarafın teklifini (offer) alacağız
-    setStatus('Bağlandı');
+    conn.on("ReceiveOffer", async (offer, _senderId) => {
+       addLog(`Teklif (Offer) alındı...`);
+       await peerConnection.current?.setRemoteDescription(new RTCSessionDescription(offer));
+       const answer = await peerConnection.current?.createAnswer();
+       if (answer) {
+         await peerConnection.current?.setLocalDescription(answer);
+         await conn.invoke("SendAnswer", peerId, answer);
+       }
+    });
+
+    conn.on("ReceiveAnswer", async (answer) => {
+       addLog(`Cevap (Answer) alındı. Bağlantı kuruluyor...`);
+       await peerConnection.current?.setRemoteDescription(new RTCSessionDescription(answer));
+    });
+
+    conn.on("ReceiveIceCandidate", async (candidate) => {
+       try {
+           if (candidate) {
+               await peerConnection.current?.addIceCandidate(new RTCIceCandidate(candidate));
+           }
+       } catch (err) {
+           console.error("ICE adayı eklenemedi:", err);
+       }
+    });
+
+    await conn.start();
+    hubConnection.current = conn;
+    return conn;
   };
 
   const setupDataChannel = (channel: RTCDataChannel) => {
@@ -189,6 +189,140 @@ export const Paylas: React.FC = () => {
     };
   };
 
+  const handleCreateConnection = async () => {
+    setStatus('Bağlanıyor');
+    addLog('Yeni bir P2P bağlantı odası oluşturuluyor...');
+    
+    try {
+      const conn = await connectSignalR();
+      // Odayı mock ID ile kurmayı dener veya sunucudan alır, uyarlama için mock ID:
+      const mockId = Math.random().toString(36).substring(2, 8).toUpperCase();
+      try {
+        await conn.invoke("CreateRoom", mockId);
+      } catch (e) {
+        addLog("Uyarı: SignalR CreateRoom çağrısı başarısız, sadece mock kullanılıyor. Sunucu kapalı olabilir." + e);
+      }
+      setConnectionId(mockId);
+      addLog(`Bağlantı oluşturuldu. Oda Kodu: ${mockId}`);
+
+      const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+      peerConnection.current = new RTCPeerConnection(configuration);
+      
+      dataChannel.current = peerConnection.current.createDataChannel('fileTransfer');
+      setupDataChannel(dataChannel.current);
+
+      peerConnection.current.onicecandidate = (event) => {
+        if (event.candidate) {
+           conn.invoke("SendIceCandidate", mockId, event.candidate).catch(console.error);
+        }
+      };
+
+      const offer = await peerConnection.current.createOffer();
+      await peerConnection.current.setLocalDescription(offer);
+      
+      try {
+         await conn.invoke("SendOffer", mockId, offer);
+      } catch (e) { }
+
+      setStatus('Bağlandı'); 
+    } catch (err) {
+      addLog(`Hata: ${err}`);
+      setStatus('Hata');
+    }
+  };
+
+  const handleJoinConnection = async () => {
+    if (!peerId) {
+      addLog('Lütfen geçerli bir kod girin.');
+      return;
+    }
+    setStatus('Bağlanıyor');
+    addLog(`${peerId} kodlu odaya katılındı...`);
+    
+    try {
+      const conn = await connectSignalR();
+      await conn.invoke("JoinRoom", peerId).catch(() => addLog("Uyarı: SignalR JoinRoom başarısız."));
+
+      const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+      peerConnection.current = new RTCPeerConnection(configuration);
+
+      peerConnection.current.ondatachannel = (event) => {
+         dataChannel.current = event.channel;
+         setupDataChannel(dataChannel.current);
+      };
+
+      peerConnection.current.onicecandidate = (event) => {
+        if (event.candidate) {
+           conn.invoke("SendIceCandidate", peerId, event.candidate).catch(console.error);
+        }
+      };
+      
+      setStatus('Bağlandı');
+    } catch (err) {
+      addLog(`Katılma Hatası: ${err}`);
+      setStatus('Hata');
+    }
+  };
+
+  const handleSelectAndSendFile = async () => {
+    if (!dataChannel.current || dataChannel.current.readyState !== 'open') {
+        addLog('Hata: WebRTC veri kanalı açık (open) değil!');
+        return;
+    }
+    try {
+        const selected = await open({ multiple: false });
+        if (selected && typeof selected === 'string') {
+            const fileName = selected.split(/[/\\]/).pop() || 'dosya';
+            addLog(`Dosya okunuyor: ${fileName}`);
+            const fileData = await readFile(selected);
+            
+            if (fileData.byteLength > MAX_FILE_SIZE) {
+               addLog(`GÜVENLİK İHLALİ: Dosya boyutu çok büyük, sınır 100MB! (${(fileData.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+               return;
+            }
+
+            // 1. Meta Veri Gönder
+            const meta = { type: 'file-meta', name: fileName, size: fileData.byteLength };
+            dataChannel.current.send(JSON.stringify(meta));
+            
+            // 2. CHUNKING - Parçalara Böldürerek Gönder
+            const CHUNK_SIZE = 64 * 1024; // 64 KB Architecture Guide
+            let offset = 0;
+            addLog(`Transfer başlatılıyor...`);
+
+            const sendChunks = async () => {
+                while (offset < fileData.byteLength) {
+                    if (dataChannel.current && dataChannel.current.readyState === 'open') {
+                        const chunk = fileData.slice(offset, offset + CHUNK_SIZE);
+                        dataChannel.current.send(chunk);
+                        offset += CHUNK_SIZE;
+
+                        // BufferedAmount engelleme mekanizması
+                        if (dataChannel.current.bufferedAmount > 2 * 1024 * 1024) { // Eğer bufferda 2MB veri varsa bekle
+                           await new Promise(r => {
+                              const check = setInterval(() => {
+                                 if (dataChannel.current && dataChannel.current.bufferedAmount < 1024 * 1024) {
+                                    clearInterval(check);
+                                    r(null);
+                                 }
+                              }, 20);
+                           });
+                        }
+                    } else {
+                        addLog('Bağlantı koptu, transfer iptal ediliyor.');
+                        break;
+                    }
+                }
+                if (offset >= fileData.byteLength) addLog(`Transfer başarıyla tamamlandı: ${fileName}`);
+            };
+            
+            sendChunks();
+        }
+    } catch (err) {
+        addLog(`Dosya okuma veya gönderme hatası: ${err}`);
+    }
+  };
+
   const handleSaveFile = async () => {
     if (!receivedFile || !receivedFile.data) return;
     try {
@@ -231,6 +365,13 @@ export const Paylas: React.FC = () => {
                     <button className="btn btn-secondary btn-sm" style={{ marginTop: 'var(--space-2)' }} onClick={() => navigator.clipboard.writeText(connectionId)}>
                         <Copy size={14} /> Kodu Kopyala
                     </button>
+                    {status === 'Bağlandı' && (
+                        <div style={{ marginTop: 'var(--space-4)' }}>
+                            <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSelectAndSendFile}>
+                                Dosya Seç ve Gönder
+                            </button>
+                        </div>
+                    )}
                 </div>
             ) : (
                 <button className="btn btn-primary" style={{ width: '100%', marginTop: 'var(--space-4)' }} onClick={handleCreateConnection} disabled={status !== 'Boşta'}>
@@ -275,7 +416,7 @@ export const Paylas: React.FC = () => {
 
        {/* Dosya Alma Alanı */}
        {receivedFile && receivedFile.data && (
-        <div style={{ padding: 'var(--space-4)', backgroundColor: 'var(--success)', color: 'white', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: 'var(--space-4)', backgroundColor: 'var(--success, #10b981)', color: 'white', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-6)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckCircle2 />
                 <div>
@@ -283,7 +424,7 @@ export const Paylas: React.FC = () => {
                     <small>{(receivedFile.size / 1024 / 1024).toFixed(2)} MB</small>
                 </div>
             </div>
-            <button className="btn" style={{ backgroundColor: 'white', color: 'var(--success)' }} onClick={handleSaveFile}>
+            <button className="btn" style={{ backgroundColor: 'white', color: 'var(--success, #10b981)' }} onClick={handleSaveFile}>
                 Cihaza Kaydet
             </button>
         </div>

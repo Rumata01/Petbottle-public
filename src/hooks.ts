@@ -17,7 +17,6 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-
 // ============================================================================
 // TİP TANIMLARI
 // ============================================================================
@@ -167,6 +166,8 @@ export function useDocument(filePath: string | null): UseDocumentReturn {
   // Fonksiyonu memoize eder, gereksiz yeniden oluşturmaları önler.
   // -------------------------------------------------------------------------
 
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
   const updateBlock = useCallback(
     async (blockId: string, content: string) => {
       if (!docId) return;
@@ -175,18 +176,22 @@ export function useDocument(filePath: string | null): UseDocumentReturn {
       setBlocks((prev) => updateBlockRecursive(prev, blockId, content));
       setIsDirty(true);
 
-      try {
-        // Rust'a bildir
-        await invoke("update_block", {
-          docId,
-          blockId,
-          content,
-        });
-      } catch (err) {
-        // Hata durumunda: Bloğu geri al (TODO: implement rollback)
-        setError(String(err));
-        console.error("Blok güncellenemedi:", err);
+      // Rust'a bildir (Debounced 400ms)
+      if (debounceTimers.current[blockId]) {
+        clearTimeout(debounceTimers.current[blockId]);
       }
+      debounceTimers.current[blockId] = setTimeout(async () => {
+        try {
+          await invoke("update_block", {
+            docId,
+            blockId,
+            content,
+          });
+        } catch (err) {
+          setError(String(err));
+          console.error("Blok güncellenemedi:", err);
+        }
+      }, 400);
     },
     [docId],
   );

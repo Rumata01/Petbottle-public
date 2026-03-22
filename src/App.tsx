@@ -17,7 +17,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { desktopDir } from "@tauri-apps/api/path";
 import DOMPurify from "dompurify";
-import { Type, Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Quote, Code, Minus, MessageSquare, ChevronRight, Menu, Check as CheckIcon, X as XIcon, Info, FolderOpen, Settings, Share2 } from "lucide-react";
+import { Type, Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Quote, Code, Minus, MessageSquare, ChevronRight, Menu, Check as CheckIcon, X as XIcon, Info, FolderOpen, Settings, Share2, Trash2 } from "lucide-react";
 
 import { Sidebar } from "./Sidebar";
 import { Paylas } from "./Paylas";
@@ -1946,36 +1946,24 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
         </div>
       )}
 
-      {/* Confirm Dialog — P5: Ekran ortasında onay modalı */}
+      {/* Confirm Dialog — Ekran ortasında onay modalı */}
       {confirmDialog && (
-        <div
-          style={{
-            position: "fixed", inset: 0,
-            background: "rgba(0,0,0,0.4)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 9998,
-          }}
-          onClick={() => setConfirmDialog(null)}
-        >
-          <div
-            style={{
-              background: "var(--bg-panel)",
-              border: "1px solid var(--border-subtle)",
-              borderRadius: "var(--radius-lg)",
-              padding: "24px",
-              maxWidth: "360px",
-              width: "90%",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.2)",
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <p style={{ margin: "0 0 20px", fontSize: "var(--text-sm, 14px)", color: "var(--text-main)", lineHeight: 1.5 }}>
+        <div className="settings-overlay open" onClick={() => setConfirmDialog(null)}>
+          <div className="settings-modal confirm-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ padding: '10px', backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '50%' }}>
+                <Trash2 size={24} />
+              </div>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Silme Onayı</h3>
+            </div>
+            <p style={{ margin: 0, fontSize: "14px", color: "var(--text-secondary)", lineHeight: 1.5 }}>
               {confirmDialog.message}
             </p>
-            <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
-              <button className="btn btn-ghost" onClick={() => setConfirmDialog(null)}>İptal</button>
+            <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end", marginTop: "10px" }}>
+              <button className="btn btn-secondary" onClick={() => setConfirmDialog(null)}>İptal</button>
               <button
-                className="btn btn-danger"
+                className="btn btn-primary"
+                style={{ backgroundColor: 'var(--danger-main, #ef4444)', borderColor: 'transparent' }}
                 onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }}
               >Sil</button>
             </div>
