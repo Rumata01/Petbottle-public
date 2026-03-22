@@ -1,0 +1,37 @@
+.drag-handle-ui {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+
+  cursor: grab;
+  color: var(--text-muted);
+  opacity: 0.5;
+
+  transition:
+    all 0,
+    2s ease;
+  user-select: none;
+}
+
+.drag-handle-ui:hover {
+  opacity: 1;
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.drag-handle-ui:active,
+.is-dragging .drag-handle-ui {
+  cursor: grabbing;
+  background-color: var(--bg-hover);
+  color: var(--brand-main);
+}
+
+.drag-handle-ui svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}

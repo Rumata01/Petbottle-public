@@ -1,0 +1,65 @@
+body {
+  font-family: var(--font-main);
+  color: var(--text--main);
+  background-color: var(--bg-app);
+}
+
+h1 {
+  font-family: var(--font-display, var(--font-main));
+  font-size: clamp(1.75rem, 4vw, 2.5);
+
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--text--main);
+  margin-bottom: var(--space-6);
+}
+
+h2 {
+  font-family: var(--font-display, var(--font-main));
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: var(--space-8);
+  margin-bottom: var(--space-4);
+}
+
+h3 {
+  font-size: clamp(1.25rem, 2vw, 1, 5rem);
+  font-weight: 600;
+  margin-top: var(--space-6);
+  margin-bottom: var(--sapce-3);
+}
+
+p {
+  margin-bottom: var(--space-4);
+  color: var(--text--main);
+}
+
+a {
+  color: var(--brand-main);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.2s ease;
+  border-bottom: 1px solid transparent;
+}
+
+a:hover {
+  color: var(--brand-dark);
+  border-bottom-color: currentColor;
+}
+
+code {
+  font-family: var(--font-code);
+  font-size: 0.9em;
+  background-color: var(--bg-hover);
+  padding: 0.2em 0.4em;
+  border-radius: var(--radius-sm);
+  color: var(--brand-dark);
+}
+
+small,
+.text-caption {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

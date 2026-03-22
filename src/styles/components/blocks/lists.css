@@ -1,0 +1,88 @@
+.block-list {
+  margin: var(--space-2) 0;
+  padding-inline-start: var(--space-6);
+  color: var(--text-main);
+}
+
+.block-list li {
+  margin-bottom: var(--space-1);
+  line-height: var(--line-height-base);
+}
+
+.block-list .block-list {
+  margin-top: var(--space-1);
+  margin-bottom: 0;
+}
+
+.block-list::marker {
+  color: var(--text-muted);
+}
+
+.block-task-list {
+  list-style: none;
+  padding-inline-start: var(--space-2);
+}
+
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.task-checkbox {
+  appearance: none;
+  -webkit-appaerance: none;
+
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+
+  background-color: var(--bg-app);
+  border: 2px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  transition: all var(--transition-fast);
+
+  display: grid;
+  place-content: center;
+}
+
+.task-checkbox:hover {
+  border-color: var(--brand-main);
+  background-color: var(--bg-hover);
+}
+
+.task-checkbox:checked {
+  background-color: var(--brand-main);
+  border-color: var(--brand-main);
+}
+
+.task-checkbox::before {
+  content: "";
+  width: 0.8rem;
+  height: 0.8rem;
+
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  background-color: var(--text-inverse);
+
+  transform: scale(0);
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.task-checkbox:checked::before {
+  transform: scale(1);
+}
+
+.task-text {
+  transition: color var(--transition-fast);
+}
+
+.task-checkbox:checked + .task-text {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--text-muted);
+  text-decoration-thickness: 1.5px;
+}

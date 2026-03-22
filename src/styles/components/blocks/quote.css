@@ -1,0 +1,22 @@
+.block-quote {
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+
+  border-inline-start: 4px solid var(--brand-main);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+
+  background-color: var(--bg-hover);
+
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 1.05em;
+  line-height: var(--line-height-base);
+}
+
+.block-quote p {
+  margin-bottom: 0;
+}
+
+.block-quote p + p {
+  margin-top: var(--space-2);
+}
