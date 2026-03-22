@@ -112,26 +112,36 @@ body {
 }
 
 /* Drag Handlers */
+.editor-row {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  width: 100%;
+  position: relative;
+}
+
 .block {
   position: relative;
 }
 
 .drag-handle {
-  position: absolute;
-  left: -25px;
-  top: 10px;
-  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin-top: 4px; /* text ile ayni hizaya getirmek icin ufak bir pay */
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, background-color 0.2s ease;
   cursor: grab;
   color: var(--text-muted);
+  border-radius: var(--radius-sm);
+  user-select: none;
 }
 
-.block:hover > .drag-handle,
-.block.focused > .drag-handle {
+.editor-row:hover > .drag-handle,
+.editor-row.focused > .drag-handle {
   opacity: 0.5;
 }
 

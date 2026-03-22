@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, memo } from "react";
 import { FileNode } from "./App";
 import { File, Folder, FolderOpen, Trash2, FilePlus, FolderPlus, Check, X, FileText, PanelLeftClose } from "lucide-react";
 
@@ -19,7 +19,7 @@ interface SidebarProps {
   onConfirmDelete: (message: string, onConfirm: () => void) => void;
 }
 
-const FileTreeNode = ({
+const FileTreeNode = memo(({
   node,
   level,
   selectedFile,
@@ -191,9 +191,9 @@ const FileTreeNode = ({
       )}
     </div>
   );
-};
+});
 
-export const Sidebar = ({
+export const Sidebar = memo(({
   path,
   files,
   selectedFile,
@@ -317,4 +317,4 @@ export const Sidebar = ({
       </div>
     </aside>
   );
-};
+});

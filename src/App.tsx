@@ -749,7 +749,7 @@ const SortableBlock = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`block ${isFocused ? "focused" : ""} ${isDragging ? "dragging" : ""} ${isDropTarget ? "drop-target" : ""}`}
+      className={`editor-row ${isFocused ? "focused" : ""} ${isDragging ? "dragging" : ""} ${isDropTarget ? "drop-target" : ""}`}
       onMouseDown={onMouseDown}
     >
       {/* Drop indicators */}
@@ -1266,12 +1266,25 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
     if (!dirPath || !filename) return;
 
     try {
+      // P11: Optimistic update (Anında UI Silme)
+      setFiles((prev) => {
+        const removeNode = (nodes: FileNode[], targetPath: string): FileNode[] => {
+          return nodes
+            .filter(n => n.path !== targetPath)
+            .map(n => ({
+              ...n,
+              children: n.children ? removeNode(n.children, targetPath) : undefined
+            }));
+        };
+        return removeNode(prev, fullPath);
+      });
+
       await invoke("delete_file", {
         directory: dirPath,
         filename: filename,
       });
 
-      // Ağacı tekrar çek
+      // Ağacı arka planda sync et
       getFiles();
 
       // Silinen dosya acik dosya ise kapat
@@ -1289,6 +1302,8 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
     } catch (error) {
       console.error("Dosya silinemedi:", error);
       showToastMessage("Dosya silinemedi: " + error, "error");
+      // Hata olursa geri getirmek için (rollback) senkronize olalım
+      getFiles();
     }
   }, [selectedFile, docId]);
 
@@ -1333,17 +1348,34 @@ Command Panel (/) ile şu blokları oluşturabilirsiniz:
   const deleteDirectory = useCallback(async (dirPath: string, dirname: string) => {
     if (!dirPath || !dirname) return;
 
+    const sep = dirPath.endsWith("/") || dirPath.endsWith("\\") ? "" : "/";
+    const fullDirName = `${dirPath}${sep}${dirname}`;
+
     try {
+      // P11: Optimistic update (Anında UI Silme)
+      setFiles((prev) => {
+        const removeNode = (nodes: FileNode[], targetPath: string): FileNode[] => {
+          return nodes
+            .filter(n => n.path !== targetPath)
+            .map(n => ({
+              ...n,
+              children: n.children ? removeNode(n.children, targetPath) : undefined
+            }));
+        };
+        return removeNode(prev, fullDirName);
+      });
+
       await invoke("delete_directory", {
         directory: dirPath,
         dirname: dirname,
       });
 
-      getFiles();
+      getFiles(); // arka planda sync
       showToastMessage(`Klasör "${dirname}" silindi`, "success");
     } catch (error) {
       console.error("Klasör silinemedi:", error);
       showToastMessage("Klasör silinemedi: " + error, "error");
+      getFiles(); // rollback
     }
   }, []);
 
