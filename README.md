@@ -76,4 +76,4 @@ PetBottle is designed with a "Privacy by Design" philosophy. All data processing
 
 ## License
 
-This project is licensed under the terms of the MIT License. See the `LICENSE` file for full details.
+This project is licensed under the terms of the Apache License. See the `LICENSE` file for full details.
