@@ -76,4 +76,4 @@ PetBottle, "Tasarım Yoluyla Gizlilik" (Privacy by Design) felsefesiyle tasarlan
 
 ## Lisans
 
-Bu proje MIT Lisansı şartları altında lisanslanmıştır. Detaylar için `LICENSE` dosyasına bakınız.
+Bu proje ApacheLisansı şartları altında lisanslanmıştır. Detaylar için `LICENSE` dosyasına bakınız.
