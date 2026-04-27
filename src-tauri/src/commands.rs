@@ -361,6 +361,23 @@ pub fn toggle_collapse(
         .ok_or_else(|| "Blok bulunamadi".to_string())
 }
 
+// Checkbox blogunu isaretle/kaldir
+#[tauri::command]
+pub fn toggle_checkbox(
+    doc_id: String,
+    block_id: String,
+    state: State<AppState>,
+) -> Result<bool, String> {
+    let mut manager = state.manager.lock();
+
+    let doc = manager
+        .get_document_mut(&doc_id)
+        .ok_or_else(|| "Dokuman bulunamadi".to_string())?;
+
+    doc.toggle_checkbox(&block_id)
+        .ok_or_else(|| "Blok bulunamadi".to_string())
+}
+
 //Blok Sil
 //Onceki blogun Id'si (focus icin)
 #[tauri::command]
@@ -427,6 +444,27 @@ pub fn change_block_type(
     };
 
     if doc.change_block_type(&block_id, block_type, depth) {
+        Ok(())
+    } else {
+        Err("Blok bulunamadi".to_string())
+    }
+}
+
+// Kod blogu dilini (infoString) guncelle
+#[tauri::command]
+pub fn update_info_string(
+    doc_id: String,
+    block_id: String,
+    info_string: String,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let mut manager = state.manager.lock();
+
+    let doc = manager
+        .get_document_mut(&doc_id)
+        .ok_or_else(|| "Dokuman bulunamadi".to_string())?;
+
+    if doc.update_info_string(&block_id, info_string) {
         Ok(())
     } else {
         Err("Blok bulunamadi".to_string())

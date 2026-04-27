@@ -454,6 +454,31 @@ impl DocumentState {
         result
     }
 
+    // Checkbox blogunu isaretle/kaldir
+    pub fn toggle_checkbox(&mut self, block_id: &str) -> Option<bool> {
+        fn toggle_recursive(blocks: &mut Vec<Block>, id: &str) -> Option<bool> {
+            for block in blocks.iter_mut() {
+                if block.id == id {
+                    let new_state = !block.checked.unwrap_or(false);
+                    block.checked = Some(new_state);
+                    return Some(new_state);
+                }
+                if let Some(ref mut children) = block.children {
+                    if let Some(result) = toggle_recursive(children, id) {
+                        return Some(result);
+                    }
+                }
+            }
+            None
+        }
+
+        let result = toggle_recursive(&mut self.blocks, block_id);
+        if result.is_some() {
+            self.is_dirty = true;
+        }
+        result
+    }
+
     // Toggle blogu belirli bir duruma ayarla
     fn set_collapsed(&mut self, block_id: &str, collapsed: bool) {
         fn set_recursive(blocks: &mut Vec<Block>, id: &str, collapsed: bool) -> bool {
@@ -471,6 +496,32 @@ impl DocumentState {
             false
         }
         set_recursive(&mut self.blocks, block_id, collapsed);
+    }
+
+    // Kod blogu dilini (infoString) guncelle
+    pub fn update_info_string(&mut self, block_id: &str, info_string: String) -> bool {
+        self.save_to_history();
+
+        fn update_recursive(blocks: &mut Vec<Block>, id: &str, info: String) -> bool {
+            for block in blocks.iter_mut() {
+                if block.id == id {
+                    block.info_string = Some(info);
+                    return true;
+                }
+                if let Some(ref mut children) = block.children {
+                    if update_recursive(children, id, info.clone()) {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+
+        let result = update_recursive(&mut self.blocks, block_id, info_string);
+        if result {
+            self.is_dirty = true;
+        }
+        result
     }
 
     // Yardimdi metotlar

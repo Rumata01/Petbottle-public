@@ -55,6 +55,11 @@ pub struct Block {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "isCollapsed")]
     pub is_collapsed: Option<bool>,
+
+    //Checkbox blocklari icin isaretli mi
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "isChecked")]
+    pub checked: Option<bool>,
 }
 
 //Block implementation
@@ -71,6 +76,7 @@ impl Block {
             info_string: None,
             children: None,
             is_collapsed: None,
+            checked: None,
         }
     }
 
@@ -84,6 +90,7 @@ impl Block {
             info_string: None,
             children: None,
             is_collapsed: None,
+            checked: None,
         }
     }
 
@@ -97,6 +104,7 @@ impl Block {
             info_string: language.map(|s| s.to_string()),
             children: None,
             is_collapsed: None,
+            checked: None,
         }
     }
     //paragraf blogu olusturma

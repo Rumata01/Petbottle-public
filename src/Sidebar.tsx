@@ -1,5 +1,5 @@
 import { useState, memo } from "react";
-import { FileNode } from "./App";
+import { FileNode } from "./types";
 import { File, Folder, FolderOpen, Trash2, FilePlus, FolderPlus, Check, X, FileText, PanelLeftClose } from "lucide-react";
 
 interface SidebarProps {
@@ -173,7 +173,7 @@ const FileTreeNode = memo(({
       {/* Render children */}
       {isOpen && node.children && (
         <div className="folder-children">
-          {node.children.map((child, i) => (
+          {node.children.map((child: FileNode, i: number) => (
             <FileTreeNode
               key={i}
               node={child}
