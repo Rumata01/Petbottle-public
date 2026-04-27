@@ -18,6 +18,9 @@ pub fn run() {
             commands::save_file_content,
             commands::create_file,
             commands::delete_file,
+            commands::rename_file,
+            commands::create_directory,
+            commands::delete_directory,
             commands::open_document,
             commands::close_document,
             commands::save_document,
@@ -29,10 +32,12 @@ pub fn run() {
             commands::change_block_type,
             commands::decrease_depth,
             commands::toggle_collapse,
+            commands::toggle_checkbox,
             commands::undo,
             commands::redo,
             commands::save_content_snapshot,
             commands::check_path_exists,
+            commands::update_info_string,
         ])
         .run(tauri::generate_context!())
         .expect("Tauri uygulamasi baslatilirken hata olustu");

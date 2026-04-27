@@ -1,0 +1,103 @@
+/* ============================================================
+   Toast Bildirimleri — Sağ alt köşe, küçük, göze batmaz
+   ============================================================ */
+
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 99999;
+  pointer-events: none;
+  width: 300px; /* Fixed width to prevent expanding to full screen */
+}
+
+.toast {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: var(--bg-panel, #252526);
+  border-left: 4px solid var(--brand-main);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.2));
+
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  pointer-events: auto;
+  animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast.closing {
+  animation: toastSlideOut 0.25s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/* ── Türe göre renk ── */
+.toast-success {
+  border-left-color: #22c55e;
+}
+.toast-success .toast-icon {
+  color: #22c55e;
+}
+
+.toast-error {
+  border-left-color: var(--danger, #ef4444);
+}
+.toast-error .toast-icon {
+  color: var(--danger, #ef4444);
+}
+
+.toast-info {
+  border-left-color: var(--brand-main);
+}
+.toast-info .toast-icon {
+  color: var(--brand-main);
+}
+
+/* ── İçerik ── */
+.toast-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+}
+
+.toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-message {
+  font-size: var(--text-xs, 12px);
+  color: var(--text-main);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Animasyonlar ── */
+@keyframes toastSlideIn {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes toastSlideOut {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}

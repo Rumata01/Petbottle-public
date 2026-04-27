@@ -1,0 +1,29 @@
+[data-theme="sunset"] {
+  --bg-app: oklch(0.18 0.03 310);
+  --bg-sidebar: oklch(0.15 0.03 310);
+  --bg-panel: oklch(0.22 0.03 310);
+  --bg-hover: oklch(0.26 0.04 310);
+
+  --brand-main: oklch(0.65 0.18 25);
+  --brand-light: oklch(0.3 0.08 25);
+  --brand-dark: oklch(0.55 0.16 25);
+
+  --text-main: oklch(0.95 0.01 320);
+  --text-muted: oklch(0.75 0.02 320);
+  --text-inverse: oklch(0.15 0.03 310);
+
+  --border-subtle: oklch(0.3 0.04 310);
+  --border-focus: var(--brand-main);
+
+  --success: oklch(0.75 0.12 130);
+  --warning: oklch(0.8 0.15 70);
+  --danger: oklch(0.6 0.18 10);
+
+  --shadow-sm: 0 1px 3px rgba(20, 5, 20, 0.6);
+  --shadow-md: 0 8px 24px rgba(20, 5, 20, 0.7);
+}
+
+[data-theme="sunset"] ::selection {
+  background-color: var(--brand-main);
+  color: var(--text-inverse);
+}

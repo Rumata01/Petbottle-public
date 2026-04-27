@@ -1,0 +1,105 @@
+.context-menu {
+  position: absolute;
+  z-index: var(--z-tooltip, 9999);
+
+  min-width: 200px;
+  padding: var(--space-1);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: var(--backdrop-blur);
+
+  box-shadow:
+    var(--shadow-md),
+    0 10px 30px rgba(0, 0, 0, 0.1);
+
+  transform-origin: top left;
+  animation: menuPop 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-color-scheme: dark) {
+  .context-menu {
+    background-color: rgba(30, 30, 30, 0.85);
+  }
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+
+  border-radius: var(--radius-sm);
+  transition: background-color 0.1s ease;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background-color: var(--bg-hover);
+  outline: none;
+}
+
+.menu-item-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--text-muted);
+}
+
+.menu-item:hover .menu-item-icon {
+  color: var(--text-main);
+}
+
+.menu-item-shortcut {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.menu-item.danger {
+  color: var(--danger);
+}
+
+.menu-item.danger .menu-item-icon {
+  color: var(--danger);
+}
+
+.menu-item.danger:hover {
+  background-color: oklch(0.95 0.05 20);
+}
+
+@media (prefers-color-scheme: dark) {
+  .menu-item.danger:hover {
+    background-color: rgba(255, 50, 50, 0.15);
+  }
+}
+
+.menu-seperator {
+  height: 1px;
+  background-color: var(--border-subtle);
+  margin: var(--space-1) var(--space-2);
+}
+@keyframes menuPop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

@@ -51,6 +51,9 @@ pub fn parse_markdown(content: &str) -> Document {
     // Kod blogu dil bilgisi (ornegin: "rust", "javascript")
     let mut current_info_string: Option<String> = None;
 
+    // Checkbox isaret durumu
+    let mut current_checkbox_checked: Option<bool> = None;
+
     //Event isleme
 
     for event in parser {
@@ -155,7 +158,10 @@ pub fn parse_markdown(content: &str) -> Document {
                         let block_type =
                             current_block_type.clone().unwrap_or(BlockType::BulletList);
 
-                        let block = Block::new(block_type, &text);
+                        let mut block = Block::new(block_type, &text);
+                        if let Some(checked) = current_checkbox_checked.take() {
+                            block.checked = Some(checked);
+                        }
                         blocks.push(block);
                     }
 
@@ -166,7 +172,21 @@ pub fn parse_markdown(content: &str) -> Document {
 
                     //Alinti Bitisi
                     TagEnd::BlockQuote => {
-                        let block = Block::new(BlockType::Quote, current_text.trim());
+                        let mut content = current_text.trim().to_string();
+                        let block_type = if content.starts_with("[!info]") {
+                            content = content.replace("[!info]", "").trim().to_string();
+                            // If the next line has ">", trim will take care of it or we might have to remove it
+                            // Actually, pulldown_cmark handles the ">" prefix automatically, so current_text is just the inner text.
+                            // So current_text will be "[!info]\n İçerik" or similar.
+                            BlockType::Callout
+                        } else if content.starts_with("[!toggle]") {
+                            content = content.replace("[!toggle]", "").trim().to_string();
+                            BlockType::Toggle
+                        } else {
+                            BlockType::Quote
+                        };
+                        
+                        let block = Block::new(block_type, &content);
                         blocks.push(block);
                         current_text.clear();
                         current_block_type = None;
@@ -189,6 +209,12 @@ pub fn parse_markdown(content: &str) -> Document {
             // metin
             Event::Text(text) => {
                 current_text.push_str(&text);
+            }
+
+            // Checkbox (TaskListMarker)
+            Event::TaskListMarker(checked) => {
+                current_block_type = Some(BlockType::Checkbox);
+                current_checkbox_checked = Some(checked);
             }
 
             //Kod Event
@@ -277,7 +303,8 @@ fn serialize_blocks_with_indent(blocks: &[Block], indent_level: usize) -> String
 
             //CheckBox(- [ ])
             BlockType::Checkbox => {
-                format!("{}- [ ] {}\n", indent, block.content)
+                let check_mark = if block.checked.unwrap_or(false) { "x" } else { " " };
+                format!("{}- [{}] {}\n", indent, check_mark, block.content)
             }
 
             // Alinti (>)
@@ -290,17 +317,14 @@ fn serialize_blocks_with_indent(blocks: &[Block], indent_level: usize) -> String
                 format!("---\n")
             }
 
-            // Callout (> 💡)
+            // Callout (> [!info])
             BlockType::Callout => {
-                format!("{}>  {}\n", indent, block.content)
+                format!("{}> [!info]\n{}> {}\n", indent, indent, block.content)
             }
 
-            // Acilir Blok (<details>)
+            // Acilir Blok (> [!toggle])
             BlockType::Toggle => {
-                format!(
-                    "<details>\n{}<summary>{}</summary>\n{}</details>\n",
-                    indent, block.content, indent
-                )
+                format!("{}> [!toggle]\n{}> {}\n", indent, indent, block.content)
             }
 
             // Kod Blogu (```)

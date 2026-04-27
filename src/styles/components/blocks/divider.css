@@ -1,0 +1,14 @@
+.block-divider {
+  border: none;
+  height: 1px;
+
+  width: 100%;
+  margin: var(--space-6) 0;
+
+  background-color: var(--border-subtle);
+
+  /* 
+    width:  80;
+    margin-inline: auto;
+  */
+}

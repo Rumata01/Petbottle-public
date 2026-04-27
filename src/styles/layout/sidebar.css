@@ -1,0 +1,76 @@
+.sidebar {
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  user-select: none;
+  font-family: var(--font-main);
+  font-size: var(--text-sm);
+  z-index: 10;
+}
+
+.sidebar-header {
+  height: var(--header-height);
+  padding: 0 var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+
+  font-weight: 600;
+  color: var(--text-main);
+  letter-spacing: -0.01em;
+}
+
+.sidebar-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+.file-list {
+  flex: 1;
+  padding: var(--space-3);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-main);
+  font-weight: 500;
+}
+
+.file-item.dragging {
+  opacity: 0.5;
+  background-color: var(--bg-app);
+  border: 1px dashed var(--border-subtle);
+}
+
+.file-item.drag-over {
+  background-color: var(--brand-light);
+  border: 1px dashed var(--brand-main);
+}
+
+.sidebar-footer {
+  padding: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+  background-color: var(--bg-sidebar);
+}
