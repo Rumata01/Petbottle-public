@@ -12,6 +12,7 @@ const SAFE_FORMATS: Record<string, string> = {
   "504B0304": "application/zip", // DOCX, XLSX vb. zip tabanlıdır
 };
 
+
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 MB Sınır
 
 export const Paylas: React.FC = () => {
