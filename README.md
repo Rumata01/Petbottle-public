@@ -1,5 +1,9 @@
 ### Geliştirilme Aşamasında Olan Güvenli ve Hızlı MarkDown Destekli Not Uygulaması
 
-**Geliştirici:** RAMAZAN YALVAÇ
-**GitHub:** YalvacRamazan
+#### Kurulum
 
+```bash
+yay -S petbottle-bin
+```
+
+Arch/Linux Harici Sürümlere İyileştirmeleri Yakında Yapacağım.
