@@ -1,0 +1,18 @@
+# Third-Party Legal Notices
+
+This application is built using [Tauri](https://tauri.app/) and depends on various third-party open-source components.
+
+## WebKitGTK, GTK3 and GLIBC (LGPL v2.1+)
+The `petbottle-bin` package dynamically links to `webkit2gtk`, `gtk3`, and `glibc` libraries on Linux systems to render the user interface and interact with the operating system.
+These libraries are licensed under the GNU Lesser General Public License (LGPL).
+
+As per the terms of the LGPL:
+- You have the right to dynamically link these libraries.
+- The source code for `webkit2gtk`, `gtk3`, and `glibc` is available from their respective upstream repositories.
+- You are free to modify these libraries and use your modified versions with this application, provided they maintain ABI compatibility with the dynamically linked binaries.
+
+## Other Dependencies
+This software also includes other components licensed under various open-source licenses (MIT, Apache 2.0, etc.). The complete list of dependencies and their respective licenses can be found in the project's source code repositories (e.g., in `package.json` and `Cargo.toml`).
+
+## Petbottle License
+The core codebase of Petbottle is released under the **Apache License 2.0**. Please refer to the `LICENSE` file for more details.
