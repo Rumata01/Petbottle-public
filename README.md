@@ -5,5 +5,8 @@
 ```bash
 yay -S petbottle-bin
 ```
+```bash
+Windows 10 için test edilmiş ve çalışmaktadır.
+```
 
 Arch/Linux Harici Sürümlere İyileştirmeleri Yakında Yapacağım.
